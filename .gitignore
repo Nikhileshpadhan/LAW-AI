@@ -1,0 +1,48 @@
+# Environment and secrets
+.env
+*.env
+*.env.*
+!.env.example
+
+# Large data bundles, databases, model checkpoints (3+ GB)
+DATA/
+data/
+*.parquet
+*.npy
+*.bin
+*.pt
+*.safetensors
+*.sqlite3
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Frontend dependencies and builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+clean/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo

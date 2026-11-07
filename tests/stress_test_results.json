@@ -1,0 +1,197 @@
+{
+  "summary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0
+  },
+  "tests": [
+    {
+      "name": "Health Check & Vector DB Count",
+      "category": "Health",
+      "passed": true,
+      "latency_sec": 0.429,
+      "details": {
+        "status_code": 200,
+        "total_vectors": 76802,
+        "legal_bert": "loaded",
+        "groq_configured": true,
+        "groq_model": "openai/gpt-oss-20b",
+        "msg": "Total vectors: 76,802 | Legal-BERT: loaded | Model: openai/gpt-oss-20b"
+      }
+    },
+    {
+      "name": "Petition Ingestion: IBC S. 14 vs NI Act S. 138",
+      "category": "Ingestion",
+      "passed": true,
+      "latency_sec": 5.943,
+      "details": {
+        "arguments_count": 1,
+        "retrieved_precedents": 15,
+        "first_arg_title": "The IBC Moratorium is a Protective Shield that Extends to Criminal Proceedings, and Natural Persons are Exempted During CIRP",
+        "msg": "Generated 1 arguments, retrieved 15 precedents"
+      }
+    },
+    {
+      "name": "PDF Ingestion: 3-Page SLP on Art. 21 Surveillance",
+      "category": "Ingestion",
+      "passed": true,
+      "latency_sec": 2.823,
+      "details": {
+        "arguments_count": 5,
+        "retrieved_precedents": 15,
+        "first_arg_title": "Application of Ratio in Fuleshwar Gope vs Union Of India on 23 September 2024 to client's case",
+        "msg": "Parsed 3-page PDF: 5 arguments generated"
+      }
+    },
+    {
+      "name": "Hybrid Ingestion: Form Text + PDF File",
+      "category": "Ingestion",
+      "passed": true,
+      "latency_sec": 1.277,
+      "details": {
+        "arguments_count": 5,
+        "msg": "Combined prompt generated 5 arguments"
+      }
+    },
+    {
+      "name": "Chat Turn 1: PMLA Bail vs Article 21 Speedy Trial",
+      "category": "Chat",
+      "passed": true,
+      "latency_sec": 3.071,
+      "details": {
+        "reply_length": 2931,
+        "citations_count": 6,
+        "retrieved_count": 6,
+        "has_citation_badge": true,
+        "msg": "Reply length: 2931 chars | Citations: 6 | Precedents: 6"
+      }
+    },
+    {
+      "name": "Chat Turn 2: Countering ED Objections & Verbatim Quotes",
+      "category": "Chat",
+      "passed": true,
+      "latency_sec": 2.835,
+      "details": {
+        "reply_length": 3010,
+        "citations_count": 6,
+        "retrieved_count": 6,
+        "has_verbatim_quote": true,
+        "msg": "Contextual response length: 3010 chars | Precedents: 6"
+      }
+    },
+    {
+      "name": "Chat Turn 3: Stance Inversion to Respondent / Defense",
+      "category": "Chat",
+      "passed": true,
+      "latency_sec": 2.423,
+      "details": {
+        "reply_length": 2970,
+        "representing_side": "Respondent / Defense",
+        "msg": "Shifted stance to Respondent / Defense | Length: 2970 chars"
+      }
+    },
+    {
+      "name": "Edge Case: Empty Prompt in Chat",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 0.465,
+      "details": {
+        "status_code": 400,
+        "msg": "HTTP 400 properly rejected: Message cannot be empty or whitespace only. Please enter a legal question or instruction."
+      }
+    },
+    {
+      "name": "Edge Case: Whitespace-Only Message in Chat",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 0.392,
+      "details": {
+        "status_code": 400,
+        "msg": "HTTP 400 properly rejected: Message cannot be empty or whitespace only. Please enter a legal question or instruction."
+      }
+    },
+    {
+      "name": "Edge Case: Sub-minimum Case Text (<20 chars)",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 0.4,
+      "details": {
+        "status_code": 400,
+        "msg": "HTTP 400 caught sub-minimum text: 'The provided case details are too brief. Please provide sufficient facts for legal analysis.'"
+      }
+    },
+    {
+      "name": "Edge Case: Unicode & Legal Symbols (\u00a7, \u00b6, \u00a9, \u2696, \u20b9, \u2116)",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 2.71,
+      "details": {
+        "reply_length": 3140,
+        "citations_count": 6,
+        "msg": "Unicode preserved and answered properly (length 3140 chars)"
+      }
+    },
+    {
+      "name": "Edge Case: Corrupted PDF Upload Handling",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 0.435,
+      "details": {
+        "status_code": 422,
+        "msg": "HTTP 422 caught corrupted PDF: 'Failed to parse PDF document 'corrupt_file.pdf': Failed to open stream'"
+      }
+    },
+    {
+      "name": "Edge Case: Extreme Token Sequence (11,000+ chars)",
+      "category": "EdgeCases",
+      "passed": true,
+      "latency_sec": 1.358,
+      "details": {
+        "input_char_length": 16081,
+        "arguments_generated": 5,
+        "retrieved_precedents": 15,
+        "msg": "Processed 16,081 characters, produced 5 arguments"
+      }
+    },
+    {
+      "name": "Report Generation: JSON / Markdown / HTML",
+      "category": "Report",
+      "passed": true,
+      "latency_sec": 2.665,
+      "details": {
+        "report_id": "SCR-20261107-1D29CA",
+        "arguments_count": 5,
+        "authorities_count": 5,
+        "markdown_len": 9761,
+        "html_len": 13239,
+        "msg": "Report ID: SCR-20261107-1D29CA | Arguments: 5 | Authorities: 5"
+      }
+    },
+    {
+      "name": "Report Export: High-Resolution PDF Generation",
+      "category": "Report",
+      "passed": true,
+      "latency_sec": 1.831,
+      "details": {
+        "status_code": 200,
+        "content_type": "application/pdf",
+        "pdf_byte_size": 24403,
+        "page_count": 3,
+        "has_magic_bytes": true,
+        "msg": "PDF generated: 24,403 bytes across 3 pages"
+      }
+    },
+    {
+      "name": "Report Export: Printable HTML Endpoint",
+      "category": "Report",
+      "passed": true,
+      "latency_sec": 3.273,
+      "details": {
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8",
+        "html_length": 13256,
+        "msg": "HTML delivered: 13,256 characters"
+      }
+    }
+  ]
+}

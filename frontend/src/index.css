@@ -1,0 +1,324 @@
+/* Hallmark · v2.0.0 · theme: modo-temlis · genre: modern-minimal */
+
+@import "tailwindcss";
+
+:root {
+  /* High-Contrast Luxury Courtroom Palette */
+  --color-canvas: #07080a;
+  --color-ink: #fcfcfc;
+  --color-body: #d1d5db;
+  --color-hairline: #26272b;
+  --color-neutral-1: #18191c;
+  --color-surface-raised: #0f1013;
+  --color-surface-card: #131519;
+
+  /* Monochromatic High-Contrast Luxury Palette (Strict Black, Gray & White) */
+  --color-gold: #ffffff;
+  --color-gold-hover: #e5e5e5;
+  --color-on-gold: #07080a;
+  --color-emerald: #34d399;
+  --color-rose: #fb7185;
+
+  /* Scrim Gradients */
+  --scrim-dark: rgba(7, 8, 10, 0.92);
+  --scrim-mid: rgba(7, 8, 10, 0.65);
+  --scrim-transparent: rgba(7, 8, 10, 0);
+
+  /* Typographic Stacks */
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* 4px Rhythm Spacing */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 40px;
+  --spacing-section: 48px;
+  --spacing-band: 56px;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+}
+
+@theme {
+  --color-canvas: var(--color-canvas);
+  --color-ink: var(--color-ink);
+  --color-body: var(--color-body);
+  --color-hairline: var(--color-hairline);
+  --color-neutral-1: var(--color-neutral-1);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-card: var(--color-surface-card);
+
+  --color-gold: var(--color-gold);
+  --color-gold-hover: var(--color-gold-hover);
+  --color-on-gold: var(--color-on-gold);
+  --color-emerald: var(--color-emerald);
+  --color-rose: var(--color-rose);
+
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+}
+
+html, body {
+  overflow-x: clip;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Sunlit Courtroom Volumetric God Rays Animation */
+.court-godray-pulse-main {
+  animation: godray-main-breathe 7.5s ease-in-out infinite alternate;
+  transform-origin: 360px 100px;
+}
+
+.court-godray-pulse-slow {
+  animation: godray-slow-breathe 9.5s ease-in-out infinite alternate;
+  transform-origin: 340px 100px;
+}
+
+.court-godray-pulse-fast {
+  animation: godray-fast-breathe 6.2s ease-in-out infinite alternate;
+  transform-origin: 400px 130px;
+}
+
+.court-desk-caustics {
+  animation: desk-caustic-shimmer 5.8s ease-in-out infinite alternate;
+  transform-origin: 690px 650px;
+}
+
+.court-floor-shimmer {
+  animation: floor-light-shimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes godray-main-breathe {
+  0% {
+    opacity: 0.75;
+    transform: scaleX(0.97) skewX(0.5deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1.03) skewX(-0.5deg);
+  }
+  100% {
+    opacity: 0.82;
+    transform: scaleX(0.98) skewX(0.3deg);
+  }
+}
+
+@keyframes godray-slow-breathe {
+  0% {
+    opacity: 0.6;
+    transform: scaleY(0.98);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleY(1.02);
+  }
+  100% {
+    opacity: 0.7;
+    transform: scaleY(0.99);
+  }
+}
+
+@keyframes godray-fast-breathe {
+  0% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes desk-caustic-shimmer {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 0.72;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes floor-light-shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Primary Action Button */
+.btn-modo-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 8px 20px;
+  border-radius: 4px;
+  border: 1px solid var(--color-gold);
+  background-color: var(--color-gold);
+  color: var(--color-on-gold);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+.btn-modo-primary:hover {
+  background-color: var(--color-gold-hover);
+  transform: translateY(-1px);
+}
+.btn-modo-primary:active {
+  transform: translateY(0);
+}
+.btn-modo-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Outline Action Button */
+.btn-modo-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 8px 20px;
+  border-radius: 4px;
+  border: 1px solid var(--color-hairline);
+  background-color: var(--color-surface-raised);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.btn-modo-outline:hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold-hover);
+  transform: translateY(-1px);
+}
+.btn-modo-outline:active {
+  transform: translateY(0);
+}
+.btn-modo-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Display Typography Scale */
+.text-display-modo {
+  font-size: clamp(3rem, 9vw, 8rem);
+  font-weight: 500;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.text-heading-large {
+  font-size: clamp(2.5rem, 8vw, 8rem);
+  font-weight: 500;
+  line-height: 0.85;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.text-body-xl {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.33;
+  letter-spacing: -0.96px;
+}
+
+.text-body-lg {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0px;
+}
+
+.text-body-lg-strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.14px;
+}
+
+.caption-xs {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.66;
+  letter-spacing: -0.12px;
+}
+
+.caption-xs-strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  letter-spacing: -0.12px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-canvas);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-body);
+}
