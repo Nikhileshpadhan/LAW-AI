@@ -180,11 +180,11 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Enable CORS for frontend integrations
+# Enable CORS for frontend integrations (supports localhost, local IPs, and all Vercel domains)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.parsed_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$",
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?|https://.*\.vercel\.app)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
