@@ -22,9 +22,9 @@ export default function AuthModal({
       setErrorMsg("");
       setSuccessMsg("");
       setLoading(false);
-      setMode("login");
+      setMode(initialMode || "login");
     }
-  }, [isOpen]);
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
@@ -72,8 +72,22 @@ export default function AuthModal({
         setMode("login");
       }
     } catch (err) {
-      const detail = err.response?.data?.detail || "An unexpected error occurred. Please try again.";
-      setErrorMsg(detail);
+      let message = "An unexpected error occurred. Please try again.";
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+        } else if (typeof detail === "string") {
+          message = detail;
+        } else {
+          message = JSON.stringify(detail);
+        }
+      } else if (err.response?.data?.message) {
+        message = err.response.data.message;
+      } else if (err.message) {
+        message = err.message;
+      }
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -223,10 +237,13 @@ export default function AuthModal({
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="At least 8 characters"
                   className="w-full bg-zinc-900 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-colors"
                 />
               </div>
+              {mode === "register" && (
+                <p className="text-[10px] text-zinc-500 pt-0.5">Password must be at least 8 characters</p>
+              )}
             </div>
           )}
 
