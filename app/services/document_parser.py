@@ -1,11 +1,16 @@
 import re
+import logging
 from typing import Optional
 from fastapi import UploadFile, HTTPException
+
+logger = logging.getLogger(__name__)
 
 try:
     import pymupdf as fitz
 except ImportError:
     import fitz
+
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB strict limit
 
 class DocumentParserService:
     @staticmethod
@@ -17,6 +22,7 @@ class DocumentParserService:
         """
         Extracts, combines, and normalizes text from a user-supplied description
         and/or an uploaded document (PDF, TXT).
+        Enforces 10 MB maximum file size and strict PDF header validation.
         """
         extracted_parts = []
         
@@ -28,8 +34,15 @@ class DocumentParserService:
         if case_file and case_file.filename:
             content_type = case_file.content_type or ""
             filename = case_file.filename.lower()
-            file_bytes = await case_file.read()
-            
+
+            # Enforce 10 MB file size limit by reading at most MAX_FILE_SIZE_BYTES + 1
+            file_bytes = await case_file.read(MAX_FILE_SIZE_BYTES + 1)
+            if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File exceeds maximum allowed size of 10 MB."
+                )
+
             if not file_bytes:
                 if not extracted_parts:
                     raise HTTPException(
@@ -37,6 +50,13 @@ class DocumentParserService:
                         detail="The uploaded file is empty. Please provide content or a description."
                     )
             elif filename.endswith(".pdf") or "pdf" in content_type:
+                # Validate PDF magic bytes
+                if not file_bytes.startswith(b"%PDF-"):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Invalid PDF file format. The file header does not match authentic PDF specifications."
+                    )
+
                 try:
                     doc = fitz.open(stream=file_bytes, filetype="pdf")
                     page_texts = []
@@ -55,18 +75,20 @@ class DocumentParserService:
                         
                     extracted_parts.append(f"=== UPLOADED CASE DOCUMENT ({case_file.filename}) ===\n{pdf_text}")
                 except Exception as e:
+                    logger.exception(f"Failed to parse PDF document '{case_file.filename}': {e}")
                     raise HTTPException(
                         status_code=422,
-                        detail=f"Failed to parse PDF document '{case_file.filename}': {str(e)}"
+                        detail="Failed to parse PDF document. The file may be corrupt or encrypted."
                     )
             elif filename.endswith(".txt") or "text" in content_type:
                 try:
                     txt_content = file_bytes.decode("utf-8", errors="replace").strip()
                     extracted_parts.append(f"=== UPLOADED CASE TEXT ({case_file.filename}) ===\n{txt_content}")
                 except Exception as e:
+                    logger.exception(f"Failed to decode text file '{case_file.filename}': {e}")
                     raise HTTPException(
                         status_code=422,
-                        detail=f"Failed to decode text file '{case_file.filename}': {str(e)}"
+                        detail="Failed to decode text file. Please ensure it is UTF-8 encoded."
                     )
             else:
                 raise HTTPException(

@@ -1,6 +1,6 @@
 from enum import Enum
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional, Any, Dict
+from pydantic import BaseModel, Field, EmailStr
 
 class RepresentingSide(str, Enum):
     PETITIONER = "Petitioner / Appellant"
@@ -14,7 +14,8 @@ class SupportingPrecedent(BaseModel):
     file_name: Optional[str] = Field(None, description="Source PDF filename in 5-year repository")
     verbatim_quote: str = Field(..., description="Direct verbatim extract from the judgment chunk")
     similarity_score: float = Field(..., description="Vector semantic similarity score (0.0 to 1.0)")
-    chunk_id: Optional[str] = Field(None, description="ChromaDB unique chunk identifier")
+    chunk_id: Optional[str] = Field(None, description="ChromaDB or Qdrant unique chunk identifier")
+    document_text: Optional[str] = Field(None, description="Full chunk text for complete judgment inspection")
 
 class LegalArgument(BaseModel):
     argument_number: int = Field(..., description="Sequential argument order")
@@ -48,7 +49,7 @@ class ExecutiveBrief(BaseModel):
     )
 
 class CaseAnalysisResponse(BaseModel):
-    representing_side: str = Field(..., description="Side for which arguments are framed")
+    representing_side: RepresentingSide = Field(..., description="Side for which arguments are framed")
     executive_brief: ExecutiveBrief = Field(..., description="Executive factual & legal brief")
     arguments: List[LegalArgument] = Field(
         default_factory=list, 
@@ -81,10 +82,10 @@ class ChatMessage(BaseModel):
     content: str = Field(..., description="Message text")
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., description="User's query or case instruction")
-    representing_side: str = Field("Petitioner / Appellant", description="Stance: Petitioner, Respondent, or Neutral")
-    case_context: Optional[str] = Field(None, description="Active case facts or document text")
-    conversation_history: Optional[List[ChatMessage]] = Field(default_factory=list, description="Recent conversation turns")
+    message: str = Field(..., min_length=1, max_length=10000, description="User's query or case instruction")
+    representing_side: RepresentingSide = Field(RepresentingSide.PETITIONER, description="Stance: Petitioner, Respondent, or Neutral")
+    case_context: Optional[str] = Field(None, max_length=50000, description="Active case facts or document text")
+    conversation_history: Optional[List[ChatMessage]] = Field(default_factory=list, max_length=30, description="Recent conversation turns")
 
 class PrecedentCitation(BaseModel):
     case_name: str = Field(..., description="Supreme Court precedent title")
@@ -94,11 +95,12 @@ class PrecedentCitation(BaseModel):
     verbatim_quote: str = Field(..., description="Exact judicial excerpt")
     similarity_score: float = Field(..., description="Vector similarity match (0.0 to 1.0)")
     citation_tag: str = Field(..., description="Formally formatted citation e.g. [Citation: ABC vs XYZ (2023) | Bench: ...] ")
-    chunk_id: Optional[str] = Field(None, description="ChromaDB chunk identifier")
+    chunk_id: Optional[str] = Field(None, description="ChromaDB or Qdrant chunk identifier")
+    document_text: Optional[str] = Field(None, description="Full chunk text for modal inspection")
 
 class ChatResponse(BaseModel):
     reply: str
-    representing_side: str
+    representing_side: RepresentingSide
     generated_queries: List[str]
     citations: List[PrecedentCitation] = Field(default_factory=list, description="Explicit citations mentioned in this response")
     retrieved_precedents: List[SupportingPrecedent]
@@ -111,10 +113,10 @@ class ReportFormat(str, Enum):
     PDF = "pdf"
 
 class ReportGenerationRequest(BaseModel):
-    title: Optional[str] = Field(None, description="Custom title for legal report")
-    representing_side: str = Field("Petitioner / Appellant", description="Petitioner / Appellant, Respondent / Defense, or Neutral Evaluation")
-    case_context: Optional[str] = Field(None, description="Original case facts or document summary")
-    conversation_history: Optional[List[ChatMessage]] = Field(default_factory=list, description="Chat turns to convert into formal arguments")
+    title: Optional[str] = Field(None, max_length=200, description="Custom title for legal report")
+    representing_side: RepresentingSide = Field(RepresentingSide.PETITIONER, description="Petitioner / Appellant, Respondent / Defense, or Neutral Evaluation")
+    case_context: Optional[str] = Field(None, max_length=50000, description="Original case facts or document summary")
+    conversation_history: Optional[List[ChatMessage]] = Field(default_factory=list, max_length=30, description="Chat turns to convert into formal arguments")
     executive_brief: Optional[ExecutiveBrief] = Field(None, description="Optional pre-existing executive brief")
     arguments: Optional[List[LegalArgument]] = Field(default_factory=list, description="Optional pre-existing arguments")
 
@@ -122,7 +124,7 @@ class LegalReportResponse(BaseModel):
     report_id: str
     title: str
     generated_at: str
-    representing_side: str
+    representing_side: RepresentingSide
     executive_brief: ExecutiveBrief
     arguments: List[LegalArgument]
     table_of_authorities: List[PrecedentCitation]
@@ -133,8 +135,70 @@ class LegalReportResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+    vector_backend: str
     chroma_db_status: str
     total_vectors: int
     legal_bert_status: str
     groq_configured: bool
     groq_model: str
+
+# ==============================================================================
+# Auth & Consultations Schemas
+# ==============================================================================
+
+class UserRegisterRequest(BaseModel):
+    email: EmailStr
+    full_name: str = Field(..., min_length=2, max_length=100)
+    password: str = Field(..., min_length=8, max_length=128)
+
+class UserLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    auth_provider: str
+    is_email_verified: bool
+    created_at: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+class ConsultationCreateRequest(BaseModel):
+    title: str = Field(..., max_length=200)
+    representing_side: RepresentingSide = RepresentingSide.PETITIONER
+    case_context: Optional[str] = None
+    messages: List[Dict[str, Any]] = Field(default_factory=list)
+
+class ConsultationResponse(BaseModel):
+    id: str
+    title: str
+    representing_side: str
+    case_context: Optional[str]
+    messages: List[Dict[str, Any]]
+    created_at: str
+    updated_at: str
+
+class ConsultationListResponse(BaseModel):
+    consultations: List[ConsultationResponse]

@@ -7,8 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.config import settings
+from app.database import init_db
 from app.services.vector_engine import VectorEngine
 from app.api.routes import router as api_router
+from app.api.auth_routes import router as auth_router
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Configure logging
 logging.basicConfig(
@@ -141,6 +146,9 @@ async def lifespan(app: FastAPI):
     This guarantees millisecond-level vector queries without cold-start overhead.
     """
     _setup_windows_event_loop_handler()
+    logger.info("Initializing Database schema (PostgreSQL / SQLite)...")
+    await init_db()
+
     logger.info("Initializing Supreme Court Precedent Vector Engine (Legal-BERT + ChromaDB)...")
     engine = VectorEngine.get_instance()
     try:
@@ -168,17 +176,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Enable CORS for frontend integrations
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.parsed_allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API Router
+# Include API & Auth Routers
 app.include_router(api_router)
+app.include_router(auth_router)
 
 @app.get("/", include_in_schema=False)
 async def root():

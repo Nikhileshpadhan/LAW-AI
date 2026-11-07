@@ -3,7 +3,7 @@ import json
 import re
 import logging
 from typing import Dict, Any, List, Optional
-from groq import Groq, APIError
+from groq import Groq
 
 from app.config import settings
 
@@ -29,6 +29,7 @@ class GroqService:
     ) -> str:
         """
         Executes chat completion with Groq using the exact specified model (default: openai/gpt-oss-120b).
+        Cascades resiliently to tertiary and quaternary models if rate limits occur.
         """
         if not self.client:
             raise ValueError(
@@ -39,20 +40,21 @@ class GroqService:
         models_to_try = [target_model]
         if settings.GROQ_FALLBACK_MODEL and settings.GROQ_FALLBACK_MODEL not in models_to_try:
             models_to_try.append(settings.GROQ_FALLBACK_MODEL)
-        # Resilient tertiary fallback if daily/minute token quota is saturated
-        if "qwen/qwen3.8-27b" not in models_to_try:
-            models_to_try.append("qwen/qwen3.8-27b")
+        
+        # Resilient tertiary & quaternary fallbacks available on Groq
+        for fallback in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]:
+            if fallback not in models_to_try:
+                models_to_try.append(fallback)
 
         last_error = None
         for m in models_to_try:
             try:
-                logger.info(f"Executing Groq completion using exact model: {m}")
-                m_tokens = min(max_tokens, 950) if "qwen" in m.lower() else max_tokens
+                logger.info(f"Executing Groq completion using model: {m}")
                 kwargs = {
                     "model": m,
                     "messages": messages,
                     "temperature": temperature,
-                    "max_tokens": m_tokens
+                    "max_tokens": max_tokens
                 }
                 if response_format:
                     kwargs["response_format"] = response_format

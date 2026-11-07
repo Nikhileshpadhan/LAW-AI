@@ -3,6 +3,8 @@
 *.env
 *.env.*
 !.env.example
+!*.example
+!frontend/.env.example
 
 # Large data bundles, databases, model checkpoints (3+ GB)
 DATA/
@@ -13,6 +15,7 @@ data/
 *.pt
 *.safetensors
 *.sqlite3
+*.db
 
 # Python caches and virtual environments
 __pycache__/
@@ -46,3 +49,4 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.neon

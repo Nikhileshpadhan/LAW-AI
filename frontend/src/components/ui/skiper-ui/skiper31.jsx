@@ -139,7 +139,7 @@ export default function Skiper31({
   variant = "v1",
   className = "",
   containerClassName = "",
-}) => {
+}) {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,

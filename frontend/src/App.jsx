@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import ModoNavbar from "./components/ModoNavbar";
 import LandingHero from "./components/LandingHero";
@@ -10,19 +10,29 @@ import ChamberSidebar from "./components/ChamberSidebar";
 import ChamberChat from "./components/ChamberChat";
 import ReportModal from "./components/ReportModal";
 import ChunkModal from "./components/ChunkModal";
+import AuthModal from "./components/AuthModal";
 import Skiper10 from "./components/ui/skiper-ui/skiper10";
 import ScrollRevealWrapper from "./components/ui/ScrollRevealWrapper";
 import { LegalApiService } from "./services/api";
 
 export default function App() {
-  const [showPreloader, setShowPreloader] = useState(true);
+  const [showPreloader, setShowPreloader] = useState(false);
   const [activeView, setActiveView] = useState("landing"); // 'landing' | 'chamber'
-  const [isChamberSidebarOpen, setIsChamberSidebarOpen] = useState(true);
+  const [isChamberSidebarOpen, setIsChamberSidebarOpen] = useState(() => {
+    return typeof window !== "undefined" ? window.innerWidth >= 768 : true;
+  });
   const [representingSide, setRepresentingSide] = useState("Petitioner / Appellant");
   const [caseContext, setCaseContext] = useState("");
   const [activeFile, setActiveFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [statutes, setStatutes] = useState([]);
+  const [lastAnalysisResult, setLastAnalysisResult] = useState(null);
+
+  // User Authentication & Consultations
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [consultations, setConsultations] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState("current");
 
   const [messages, setMessages] = useState([
     {
@@ -40,15 +50,54 @@ export default function App() {
   const [activeReport, setActiveReport] = useState(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-
   const [inspectPrecedent, setInspectPrecedent] = useState(null);
+
+  // 1. Non-blocking wake-up ping to backend health check on mount
+  useEffect(() => {
+    LegalApiService.checkHealth().catch(() => {});
+
+    // Restore cached user
+    const savedUser = localStorage.getItem("law_ai_user");
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch {}
+    }
+
+    // Check for Google OAuth success redirect query param (?auth_success=true)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("auth_success") === "true") {
+      LegalApiService.getMe()
+        .then((user) => {
+          setCurrentUser(user);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // 2. Fetch saved consultations when user is authenticated
+  useEffect(() => {
+    if (currentUser) {
+      LegalApiService.getConsultations()
+        .then(setConsultations)
+        .catch(() => {});
+    } else {
+      setConsultations([]);
+    }
+  }, [currentUser]);
 
   // Send Chat Message
   const handleSendMessage = async (text) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     const userMessage = { role: "user", content: text };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
+    setActiveReport(null); // Invalidate cached report
 
     try {
       const history = updatedMessages.map((m) => ({
@@ -63,7 +112,7 @@ export default function App() {
         conversation_history: history,
       });
 
-      // Update precedents pool
+      // Update precedents pool with real retrieved authorities
       if (res.retrieved_precedents) {
         setPrecedentsPool((prev) => {
           const next = { ...prev };
@@ -86,30 +135,18 @@ export default function App() {
         },
       ]);
     } catch (err) {
-      console.error("Chat error:", err);
-      const sampleCitation = {
-        case_name: "P. Mohanraj & Ors. v. Shah Brothers Ispat Pvt. Ltd.",
-        year: "2021",
-        bench: "R.F. Nariman, Navin Sinha, K.M. Joseph, JJ.",
-        similarity_score: 0.89,
-        verbatim_quote:
-          "The moratorium provision contained in Section 14 of the IBC applies to criminal proceedings under Section 138 of the Negotiable Instruments Act against the corporate debtor.",
-        document_text:
-          "Section 14(1)(a) of the Insolvency and Bankruptcy Code, 2016 makes it clear that the institution of suits or continuation of pending suits or proceedings against the corporate debtor including execution of any judgment, decree or order in any court of law, tribunal, arbitration panel or other authority is prohibited. Consequently, criminal complaints under Section 138 of the Negotiable Instruments Act are squarely covered within the expression 'proceedings' under Section 14."
-      };
-
-      setPrecedentsPool((prev) => ({
-        ...prev,
-        [`${sampleCitation.case_name}_${sampleCitation.year}`]: sampleCitation,
-      }));
+      console.error("Chat consultation error:", err);
+      const errorMsg =
+        err.response?.data?.detail ||
+        "The Supreme Court precedent engine is currently processing high-volume requests or timed out. Please retry your instruction.";
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Counsel, analyzing your submission against the Supreme Court repository:\n\nUnder settled apex jurisprudence, statutory bars and moratorium principles operate strictly against proceedings impairing corporate restructuring. The relevant binding precedent is extracted below.",
-          citations: [sampleCitation],
+          content: errorMsg,
+          isError: true,
+          retryPrompt: text,
         },
       ]);
     } finally {
@@ -119,8 +156,13 @@ export default function App() {
 
   // Upload Case File (PDF / TXT)
   const handleUploadFile = async (file) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setActiveFile(file);
     setIsUploading(true);
+    setActiveReport(null); // Invalidate cached report
 
     const formData = new FormData();
     formData.append("case_file", file);
@@ -137,6 +179,12 @@ export default function App() {
         setStatutes(res.executive_brief.applicable_statutes || []);
       }
 
+      // Save last analysis result so report generation doesn't re-run slow duplicate LLM calls
+      setLastAnalysisResult({
+        executive_brief: res.executive_brief,
+        arguments: res.arguments,
+      });
+
       if (res.arguments) {
         res.arguments.forEach((arg) => {
           if (arg.supporting_precedents) {
@@ -152,16 +200,44 @@ export default function App() {
         });
       }
 
+      // Render full analysis: executive brief AND all formulated court arguments
+      let argumentContent = "";
+      if (res.arguments && res.arguments.length > 0) {
+        argumentContent =
+          "\n\n### Court-Ready Strategic Arguments Formulated:\n\n" +
+          res.arguments
+            .map(
+              (a) =>
+                `**Argument #${a.argument_number}: ${a.title}**\n\n` +
+                `${a.detailed_reasoning}\n\n` +
+                (a.supporting_precedents?.length
+                  ? `*Supporting Authorities:* ${a.supporting_precedents
+                      .map((p) => `${p.case_name} (${p.year})`)
+                      .join("; ")}\n\n`
+                  : "") +
+                `*Anticipated Objection:* ${a.anticipated_counter_argument}\n\n` +
+                `*Strategic Court Rebuttal:* ${a.rebuttal}`
+            )
+            .join("\n\n---\n\n");
+      }
+
+      const assistantMsg =
+        `**Case Document Uploaded & Analyzed:** \`${file.name}\`\n\n` +
+        `**Executive Factual Summary:**\n${res.executive_brief.summary_of_facts}\n\n` +
+        `**Key Legal Questions Formulated:**\n${res.executive_brief.key_legal_issues.map((i) => `• ${i}`).join("\n")}` +
+        argumentContent;
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `**Case Document Uploaded & Analyzed:** \`${file.name}\`\n\n**Executive Factual Summary:**\n${res.executive_brief.summary_of_facts}\n\n**Key Legal Issues Identified:**\n${res.executive_brief.key_legal_issues.map((i) => `• ${i}`).join("\n")}`,
+          content: assistantMsg,
         },
       ]);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Failed to analyze document. Please check the file and try again.");
+      const detail = err.response?.data?.detail || "Failed to analyze document. Please check the file and try again.";
+      alert(detail);
     } finally {
       setIsUploading(false);
     }
@@ -185,24 +261,20 @@ export default function App() {
       setStatutes([]);
       setPrecedentsPool({});
       setActiveReport(null);
+      setLastAnalysisResult(null);
+      setActiveSessionId("current");
     }
   };
 
-  // Generate Formal Strategy Report
+  // Generate Formal Strategy Report (shows loading spinner while generating)
   const handleOpenReportModal = async () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setIsReportModalOpen(true);
 
     if (!activeReport) {
-      const initialBrief = {
-        title: "Supreme Court Strategy Brief",
-        report_id: `SC-REP-${Date.now().toString().slice(-6)}`,
-        representing_side: representingSide,
-        generated_at: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
-        markdown_content: `# SUPREME COURT STRATEGY BRIEF\n\n### REPRESENTING: ${representingSide}\n\n**Executive Summary of Facts:**\n${caseContext || "Consultation record regarding statutory interpretation, maintainability, and apex precedents."}\n\n### SUBMISSIONS ON MERIT:\n1. **Statutory Applicability:** Primary relief grounds established under prevailing jurisprudence.\n2. **Distinguishing Authorities:** Analysis of contrary precedents and factual distinction grounds.\n\n### PRAYER:\nCounsel respectfully submits this brief for chamber review.`,
-        table_of_authorities: Object.values(precedentsPool),
-      };
-      setActiveReport(initialBrief);
-
       try {
         const history = messages.map((m) => ({
           role: m.role,
@@ -213,17 +285,25 @@ export default function App() {
           representing_side: representingSide,
           case_context: caseContext,
           conversation_history: history,
+          executive_brief: lastAnalysisResult?.executive_brief,
+          arguments: lastAnalysisResult?.arguments,
         });
 
         if (rep) setActiveReport(rep);
       } catch (err) {
-        console.error("Report generation background error:", err);
+        console.error("Report generation error:", err);
+        alert("Failed to synthesize report. Please ensure sufficient case facts or chat turns exist.");
+        setIsReportModalOpen(false);
       }
     }
   };
 
-  // Quick PDF Export
+  // Quick PDF Export (passes pre-calculated brief & arguments if available)
   const handleQuickExportPdf = async () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setIsExportingPdf(true);
     try {
       const history = messages.map((m) => ({
@@ -235,6 +315,8 @@ export default function App() {
         representing_side: representingSide,
         case_context: caseContext,
         conversation_history: history,
+        executive_brief: activeReport?.executive_brief || lastAnalysisResult?.executive_brief,
+        arguments: activeReport?.arguments || lastAnalysisResult?.arguments,
       });
     } catch (err) {
       console.error("PDF Export error:", err);
@@ -247,6 +329,35 @@ export default function App() {
   const handleSelectScenario = (promptText) => {
     setActiveView("chamber");
     handleSendMessage(promptText);
+  };
+
+  const handleSelectSavedConsultation = (consultation) => {
+    setActiveSessionId(consultation.id);
+    setCaseContext(consultation.case_context || "");
+    if (consultation.representing_side) {
+      setRepresentingSide(consultation.representing_side);
+    }
+    if (consultation.messages && consultation.messages.length > 0) {
+      setMessages(consultation.messages);
+    }
+    setActiveReport(null);
+  };
+
+  const handleDeleteConsultation = async (id) => {
+    if (window.confirm("Permanently delete this saved consultation session?")) {
+      try {
+        await LegalApiService.deleteConsultation(id);
+        setConsultations((prev) => prev.filter((c) => c.id !== id));
+      } catch (err) {
+        console.error("Delete consultation error:", err);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await LegalApiService.logout();
+    setCurrentUser(null);
+    setConsultations([]);
   };
 
   return (
@@ -264,10 +375,9 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Main Content: Landing Exhibition Mode OR Interactive Chamber Mode */}
+      {/* Main Content: Landing Mode OR Chamber Mode */}
       {activeView === "landing" ? (
         <>
-          {/* Universal Modo-temlis Top Navigation for Landing Page */}
           <ModoNavbar
             activeView={activeView}
             setActiveView={setActiveView}
@@ -314,14 +424,33 @@ export default function App() {
             onToggleSidebar={() => setIsChamberSidebarOpen((prev) => !prev)}
             onOpenReportModal={handleOpenReportModal}
             onReturnToLanding={() => setActiveView("landing")}
+            representingSide={representingSide}
+            setRepresentingSide={(side) => {
+              setRepresentingSide(side);
+              setActiveReport(null);
+            }}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onLogout={handleLogout}
           />
           <div className="flex-1 flex overflow-hidden min-h-0 w-full h-full relative">
             <ChamberSidebar
               isOpen={isChamberSidebarOpen}
               onToggle={() => setIsChamberSidebarOpen(false)}
               onNewSession={handleResetSession}
-              onSelectSession={handleSelectScenario}
+              onSelectSession={handleSelectSavedConsultation}
+              activeSessionId={activeSessionId}
               onReturnToLanding={() => setActiveView("landing")}
+              caseContext={caseContext}
+              setCaseContext={(ctx) => {
+                setCaseContext(ctx);
+                setActiveReport(null);
+              }}
+              statutes={statutes}
+              precedentsPool={precedentsPool}
+              onInspectPrecedent={(p) => setInspectPrecedent(p)}
+              consultations={consultations}
+              onDeleteConsultation={handleDeleteConsultation}
             />
             <ChamberChat
               messages={messages}
@@ -332,6 +461,9 @@ export default function App() {
               onRemoveFile={handleRemoveFile}
               isUploading={isUploading}
               onInspectPrecedent={(p) => setInspectPrecedent(p)}
+              onRetry={(prompt) => handleSendMessage(prompt)}
+              currentUser={currentUser}
+              onRequireAuth={() => setIsAuthModalOpen(true)}
             />
           </div>
         </div>
@@ -351,6 +483,15 @@ export default function App() {
         isOpen={!!inspectPrecedent}
         onClose={() => setInspectPrecedent(null)}
         precedent={inspectPrecedent}
+      />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+        }}
       />
     </div>
   );

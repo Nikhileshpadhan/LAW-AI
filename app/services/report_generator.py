@@ -1,6 +1,7 @@
 import re
 import uuid
 import time
+import html
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 try:
@@ -91,7 +92,8 @@ class ReportGeneratorService:
                             verbatim_quote=prec.verbatim_quote,
                             similarity_score=prec.similarity_score,
                             citation_tag=tag,
-                            chunk_id=prec.chunk_id
+                            chunk_id=prec.chunk_id,
+                            document_text=prec.document_text
                         )
                     )
 
@@ -336,11 +338,22 @@ class ReportGeneratorService:
         arguments: List[LegalArgument],
         table_of_authorities: List[PrecedentCitation]
     ) -> str:
-        html = f"""<!DOCTYPE html>
+        def esc(val: Any) -> str:
+            return html.escape(str(val or ""), quote=True)
+
+        esc_title = esc(title)
+        esc_report_id = esc(report_id)
+        esc_side = esc(representing_side)
+        esc_date = esc(generated_at)
+        esc_facts = esc(executive_brief.summary_of_facts)
+        esc_issues = "".join(f"<li>{esc(q)}</li>" for q in executive_brief.key_legal_issues)
+        esc_statutes = " &bull; ".join(esc(s) for s in executive_brief.applicable_statutes)
+
+        html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{title} - {report_id}</title>
+<title>{esc_title} - {esc_report_id}</title>
 <style>
   body {{
     font-family: 'Georgia', 'Times New Roman', serif;
@@ -465,49 +478,49 @@ class ReportGeneratorService:
 <div class="report-container">
   <div class="header-block">
     <div class="court-badge">Supreme Court of India Precedent Repository</div>
-    <h1>{title}</h1>
+    <h1>{esc_title}</h1>
     <div class="meta-bar">
-      <span><strong>REF:</strong> {report_id}</span>
-      <span><strong>STANCE:</strong> {representing_side}</span>
-      <span><strong>DATE:</strong> {generated_at}</span>
+      <span><strong>REF:</strong> {esc_report_id}</span>
+      <span><strong>STANCE:</strong> {esc_side}</span>
+      <span><strong>DATE:</strong> {esc_date}</span>
     </div>
   </div>
 
   <h2>I. Executive Case Brief & Procedural Matrix</h2>
-  <p>{executive_brief.summary_of_facts}</p>
+  <p>{esc_facts}</p>
 
   <h3>Key Formulated Legal Questions</h3>
   <ol>
-    {"".join(f"<li>{q}</li>" for q in executive_brief.key_legal_issues)}
+    {esc_issues}
   </ol>
 
   <h3>Governing Statutory Framework</h3>
-  <p>{" &bull; ".join(executive_brief.applicable_statutes)}</p>
+  <p>{esc_statutes}</p>
 
   <h2>II. Substantive Legal Arguments & Ratio Application</h2>
 """
         for arg in arguments:
-            html += f"""
+            html_out += f"""
   <div style="margin-bottom: 30px;">
-    <h3>Argument #{arg.argument_number}: {arg.title}</h3>
-    <p>{arg.detailed_reasoning}</p>
+    <h3>Argument #{esc(arg.argument_number)}: {esc(arg.title)}</h3>
+    <p>{esc(arg.detailed_reasoning)}</p>
 """
             for prec in arg.supporting_precedents:
                 bench = prec.bench or "Supreme Court of India"
                 score = round(prec.similarity_score * 100, 1)
-                html += f"""
+                html_out += f"""
     <div class="citation-card">
-      <strong>{prec.case_name} ({prec.year})</strong> &mdash; <em>Bench: {bench}</em> [Relevance Match: {score}%]
-      <div class="quote-box">"{prec.verbatim_quote.strip()}"</div>
+      <strong>{esc(prec.case_name)} ({esc(prec.year)})</strong> &mdash; <em>Bench: {esc(bench)}</em> [Relevance Match: {score}%]
+      <div class="quote-box">"{esc(prec.verbatim_quote.strip())}"</div>
     </div>
 """
-            html += f"""
-    <div class="counter-box"><strong>Anticipated Objection:</strong> {arg.anticipated_counter_argument}</div>
-    <div class="rebuttal-box"><strong>Strategic Court Rebuttal:</strong> {arg.rebuttal}</div>
+            html_out += f"""
+    <div class="counter-box"><strong>Anticipated Objection:</strong> {esc(arg.anticipated_counter_argument)}</div>
+    <div class="rebuttal-box"><strong>Strategic Court Rebuttal:</strong> {esc(arg.rebuttal)}</div>
   </div>
 """
 
-        html += f"""
+        html_out += f"""
   <div class="page-break"></div>
   <h2>III. Table of Authorities (Supreme Court of India)</h2>
   <table>
@@ -523,16 +536,16 @@ class ReportGeneratorService:
     <tbody>
 """
         for idx, auth in enumerate(table_of_authorities, 1):
-            html += f"""
+            html_out += f"""
       <tr>
         <td>{idx}</td>
-        <td><strong>{auth.case_name}</strong></td>
-        <td>{auth.year}</td>
-        <td>{auth.bench}</td>
+        <td><strong>{esc(auth.case_name)}</strong></td>
+        <td>{esc(auth.year)}</td>
+        <td>{esc(auth.bench)}</td>
         <td>{auth.similarity_score * 100:.1f}%</td>
       </tr>
 """
-        html += f"""
+        html_out += f"""
     </tbody>
   </table>
 
@@ -543,4 +556,4 @@ class ReportGeneratorService:
 </body>
 </html>
 """
-        return html
+        return html_out

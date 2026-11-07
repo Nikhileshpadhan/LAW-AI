@@ -128,10 +128,17 @@ class ArgumentSynthesizerService:
                 applicable_statutes=brief_data.get("applicable_statutes", factual_context.get("applicable_statutes", []))
             )
 
+            # Build map of retrieved precedent document texts
+            prec_doc_map = {p.get("chunk_id"): p.get("document_text") for p in retrieved_precedents if p.get("chunk_id")}
+            case_doc_map = {p.get("case_name", "").lower(): p.get("document_text") for p in retrieved_precedents}
+
             arguments: List[LegalArgument] = []
             for arg_raw in data.get("arguments", []):
                 supporting_list = []
                 for prec_raw in arg_raw.get("supporting_precedents", []):
+                    c_id = prec_raw.get("chunk_id")
+                    c_name = prec_raw.get("case_name", "").lower()
+                    doc_txt = prec_doc_map.get(c_id) or case_doc_map.get(c_name) or prec_raw.get("document_text")
                     supporting_list.append(
                         SupportingPrecedent(
                             case_name=prec_raw.get("case_name", "Supreme Court of India"),
@@ -139,7 +146,8 @@ class ArgumentSynthesizerService:
                             bench=prec_raw.get("bench", "Supreme Court of India"),
                             verbatim_quote=prec_raw.get("verbatim_quote", ""),
                             similarity_score=float(prec_raw.get("similarity_score", 0.0)),
-                            chunk_id=prec_raw.get("chunk_id")
+                            chunk_id=c_id,
+                            document_text=doc_txt
                         )
                     )
 
@@ -206,7 +214,8 @@ class ArgumentSynthesizerService:
                             file_name=prec.get("file_name"),
                             verbatim_quote=quote,
                             similarity_score=prec["similarity_score"],
-                            chunk_id=prec["chunk_id"]
+                            chunk_id=prec["chunk_id"],
+                            document_text=prec.get("document_text")
                         )
                     ],
                     anticipated_counter_argument="Opposing counsel may argue that the factual context of this precedent differs.",
