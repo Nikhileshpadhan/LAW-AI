@@ -2,7 +2,7 @@ import sys
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
@@ -189,6 +189,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Route alias middleware: seamlessly rewrite direct requests like /auth/register -> /api/v1/auth/register
+# This ensures total compatibility whether the client sends with or without /api/v1 prefix
+@app.middleware("http")
+async def rewrite_api_v1_prefix(request: Request, call_next):
+    path = request.url.path
+    if (
+        not path.startswith("/api/v1")
+        and not path.startswith("/docs")
+        and not path.startswith("/redoc")
+        and not path.startswith("/openapi.json")
+        and path not in ("/", "")
+    ):
+        request.scope["path"] = f"/api/v1{path}"
+    return await call_next(request)
 
 # Include API & Auth Routers
 app.include_router(api_router)

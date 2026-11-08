@@ -1,8 +1,13 @@
 import axios from "axios";
 
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "");
+  let url = import.meta.env.VITE_API_BASE_URL;
+  if (url && typeof url === "string" && url.trim().length > 0) {
+    url = url.trim().replace(/\/+$/, "");
+    if (!url.endsWith("/api/v1")) {
+      url = `${url}/api/v1`;
+    }
+    return url;
   }
   if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
     return "https://law-ai-ts2x.onrender.com/api/v1";
