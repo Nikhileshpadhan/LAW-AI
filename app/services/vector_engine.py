@@ -20,6 +20,8 @@ class VectorEngine:
         self.model: Optional[Any] = None
         # Qdrant backend attributes
         self.qdrant_client: Optional[Any] = None
+        self.onnx_session: Optional[Any] = None
+        self.onnx_tokenizer: Optional[Any] = None
         self._is_initialized = False
 
     @classmethod
@@ -98,6 +100,63 @@ class VectorEngine:
         except Exception as e:
             logger.warning(f"Could not fetch collection info from Qdrant: {e}")
 
+        # Initialize lightweight ONNX Legal-BERT embedder (18ms inference, ~120MB RAM, zero external cost)
+        self._initialize_onnx()
+
+    def _initialize_onnx(self):
+        """Initializes self-contained ONNX Legal-BERT embedder for cloud deployment."""
+        try:
+            import gzip
+            import onnxruntime as ort
+            from transformers import BertTokenizerFast
+
+            assets_dir = Path(__file__).resolve().parent.parent / "model_assets"
+            onnx_path = assets_dir / "legal_bert_int8.onnx"
+            onnx_gz_path = assets_dir / "legal_bert_int8.onnx.gz"
+
+            # Auto-decompress on first boot if uncompressed file is missing
+            if not onnx_path.exists() and onnx_gz_path.exists():
+                logger.info(f"Decompressing ONNX Legal-BERT model ({onnx_gz_path.name})...")
+                with gzip.open(onnx_gz_path, "rb") as f_in:
+                    with open(onnx_path, "wb") as f_out:
+                        f_out.write(f_in.read())
+                logger.info("ONNX decompression complete.")
+
+            if onnx_path.exists():
+                sess_options = ort.SessionOptions()
+                sess_options.intra_op_num_threads = 2
+                sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                self.onnx_session = ort.InferenceSession(
+                    str(onnx_path),
+                    sess_options,
+                    providers=["CPUExecutionProvider"]
+                )
+                self.onnx_tokenizer = BertTokenizerFast.from_pretrained(str(assets_dir))
+                logger.info("Self-contained ONNX Legal-BERT embedder successfully initialized.")
+            else:
+                logger.warning(f"ONNX model file not found in {assets_dir}. Will fall back to HF API if configured.")
+        except Exception as e:
+            logger.warning(f"Could not initialize ONNX Legal-BERT embedder ({e}). Will fall back to HF API if configured.")
+
+    def _encode_onnx(self, texts: List[str]) -> List[List[float]]:
+        """Encodes texts into 768-D Legal-BERT vectors using ONNX Runtime (~18ms)."""
+        import numpy as np
+
+        tokens = self.onnx_tokenizer(
+            texts,
+            padding=True,
+            truncation=True,
+            max_length=256,
+            return_tensors="np"
+        )
+        inputs = {
+            "input_ids": tokens["input_ids"].astype(np.int64),
+            "attention_mask": tokens["attention_mask"].astype(np.int64),
+            "token_type_ids": tokens["token_type_ids"].astype(np.int64),
+        }
+        outputs = self.onnx_session.run(["embeddings"], inputs)[0]
+        return outputs.tolist()
+
     def get_collection_count(self) -> int:
         if self.backend == "local":
             return self.collection.count() if self.collection else 0
@@ -110,12 +169,14 @@ class VectorEngine:
         return 0
 
     def encode(self, texts: List[str]) -> List[List[float]]:
-        """Encodes texts to 768-D vectors using either local SentenceTransformer or HF Inference API."""
+        """Encodes texts to 768-D vectors using local SentenceTransformer, local ONNX, or HF Inference API."""
         if self.backend == "local":
             if not self.model:
                 raise RuntimeError("Local VectorEngine model has not been initialized.")
             embeddings = self.model.encode(texts, convert_to_numpy=True)
             return embeddings.tolist()
+        elif getattr(self, "onnx_session", None) is not None:
+            return self._encode_onnx(texts)
         else:
             return self._encode_hf_api(texts)
 

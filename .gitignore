@@ -16,6 +16,8 @@ data/
 *.safetensors
 *.sqlite3
 *.db
+app/model_assets/*.onnx
+!app/model_assets/*.onnx.gz
 
 # Python caches and virtual environments
 __pycache__/
