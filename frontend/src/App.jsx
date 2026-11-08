@@ -384,15 +384,13 @@ export default function App() {
           />
           <main className="flex-1 flex flex-col bg-black">
             {/* Gallery Hero */}
-            <ScrollRevealWrapper variant="fade-up" threshold={0.05}>
-              <LandingHero
-                onEnterChamber={() => setActiveView("chamber")}
-                onExploreCorpus={() => {
-                  const el = document.getElementById("features") || document.getElementById("architecture");
-                  el?.scrollIntoView({ behavior: "smooth" });
-                }}
-              />
-            </ScrollRevealWrapper>
+            <LandingHero
+              onEnterChamber={() => setActiveView("chamber")}
+              onExploreCorpus={() => {
+                const el = document.getElementById("features") || document.getElementById("architecture");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            />
 
             {/* Features: Building Technology */}
             <ScrollRevealWrapper variant="cinematic" threshold={0.05}>
@@ -491,6 +489,7 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={(user) => {
           setCurrentUser(user);
+          setIsAuthModalOpen(false);
         }}
       />
     </div>

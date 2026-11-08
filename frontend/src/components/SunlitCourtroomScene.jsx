@@ -10,13 +10,13 @@ export default function SunlitCourtroomScene() {
     if (!ctx) return;
 
     let animationFrameId;
-    let width = (canvas.width = canvas.offsetWidth);
-    let height = (canvas.height = canvas.offsetHeight);
+    let width = (canvas.width = canvas.offsetWidth || window.innerWidth || 1280);
+    let height = (canvas.height = canvas.offsetHeight || window.innerHeight || 800);
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = canvas.offsetWidth;
-      height = canvas.height = canvas.offsetHeight;
+      width = canvas.width = canvas.offsetWidth || window.innerWidth || 1280;
+      height = canvas.height = canvas.offsetHeight || window.innerHeight || 800;
     };
     window.addEventListener("resize", handleResize);
 
@@ -26,8 +26,8 @@ export default function SunlitCourtroomScene() {
     // Point 3: Center table bottom-right (0.62, 0.88)
     // Point 4: Center table bottom-left (0.34, 0.86)
     const getBeamLimits = (y, w, h) => {
-      const topY = h * 0.04;
-      const bottomY = h * 0.87;
+      const topY = Math.max(1, h * 0.04);
+      const bottomY = Math.max(topY + 10, h * 0.87);
       const t = Math.max(0, Math.min(1, (y - topY) / (bottomY - topY)));
       const xLeft = w * (0.22 + 0.12 * t);
       const xRight = w * (0.315 + 0.305 * t);

@@ -290,6 +290,11 @@ export default function ChamberChat({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              onClick={() => {
+                if (!currentUser) {
+                  onRequireAuth?.();
+                }
+              }}
               onFocus={() => {
                 if (!currentUser) {
                   onRequireAuth?.();

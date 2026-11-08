@@ -59,7 +59,7 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
           >
             RAG-Based
             <br />
-            Law Intelligance
+            Law Intelligence
           </motion.h1>
 
           {/* Ghost Buttons: Strictly transparent background, thin crisp white border, white text, minimalist right-arrow icon */}
