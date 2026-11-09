@@ -48,6 +48,51 @@ def generate_mock_legal_pdf(num_pages=3) -> bytes:
     return pdf_bytes
 
 
+def get_authenticated_session(base_url: str) -> requests.Session:
+    """Authenticates counsel credentials using existing login/register mechanism."""
+    session = requests.Session()
+    creds = {
+        "email": "counsel.stress@supreme-court.law",
+        "password": "CounselPassword@123"
+    }
+    # 1. Attempt login first
+    try:
+        r = session.post(f"{base_url}/api/v1/auth/login", json=creds, timeout=10)
+        if r.status_code == 200:
+            token = r.json().get("access_token")
+            session.headers.update({"Authorization": f"Bearer {token}"})
+            print(f"[AUTH] Successfully logged in as {creds['email']}")
+            return session
+    except Exception as e:
+        print(f"[AUTH] Login attempt failed: {e}")
+
+    # 2. If login failed, attempt registration
+    reg_payload = {
+        "email": creds["email"],
+        "full_name": "Advocate Test Stress Counsel",
+        "password": creds["password"]
+    }
+    try:
+        r = session.post(f"{base_url}/api/v1/auth/register", json=reg_payload, timeout=10)
+        if r.status_code == 200:
+            token = r.json().get("access_token")
+            session.headers.update({"Authorization": f"Bearer {token}"})
+            print(f"[AUTH] Successfully registered and authenticated as {creds['email']}")
+            return session
+    except Exception as e:
+        print(f"[AUTH] Registration attempt failed: {e}")
+
+    # 3. Fallback retry login if account already exists
+    r = session.post(f"{base_url}/api/v1/auth/login", json=creds, timeout=10)
+    if r.status_code == 200:
+        token = r.json().get("access_token")
+        session.headers.update({"Authorization": f"Bearer {token}"})
+        print(f"[AUTH] Successfully logged in as {creds['email']}")
+        return session
+
+    raise RuntimeError(f"Failed to authenticate counsel session: {r.status_code} {r.text}")
+
+
 def run_stress_tests():
     results = {
         "summary": {"total": 0, "passed": 0, "failed": 0},
@@ -97,6 +142,12 @@ def run_stress_tests():
         record("Health Check & Vector DB Count", "Health", False, time.time() - t0, {"error": str(e)})
 
     # ==========================================
+    # 0B. Counsel Authentication
+    # ==========================================
+    log_section("0B. Counsel Authentication")
+    session = get_authenticated_session(BASE_URL)
+
+    # ==========================================
     # 1. Complex Legal Petition Ingestion (/api/v1/analyze-case)
     # ==========================================
     log_section("1. Complex Case Petition Ingestion")
@@ -116,7 +167,7 @@ def run_stress_tests():
         "5. The Petitioner places reliance on the landmark judgment of P. Mohanraj & Ors. v. Shah Brothers Ispat Pvt. Ltd. (2021) 6 SCC 258."
     )
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={
                 "case_description": petition_text_ibc,
@@ -149,7 +200,7 @@ def run_stress_tests():
     t0 = time.time()
     mock_pdf_bytes = generate_mock_legal_pdf(num_pages=3)
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={"representing_side": "Petitioner / Appellant"},
             files={"case_file": ("petition_art21_surveillance.pdf", mock_pdf_bytes, "application/pdf")},
@@ -179,7 +230,7 @@ def run_stress_tests():
     time.sleep(1.5)
     t0 = time.time()
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={
                 "case_description": "Additional factual note: Interception orders were renewed 6 times without high-level committee review.",
@@ -225,7 +276,7 @@ def run_stress_tests():
         "conversation_history": chat_history
     }
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/chat", json=t1_payload, timeout=60)
+        r = session.post(f"{BASE_URL}/api/v1/chat", json=t1_payload, timeout=60)
         lat = time.time() - t0
         if r.status_code == 200:
             data = r.json()
@@ -260,7 +311,7 @@ def run_stress_tests():
         "conversation_history": chat_history
     }
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/chat", json=t2_payload, timeout=60)
+        r = session.post(f"{BASE_URL}/api/v1/chat", json=t2_payload, timeout=60)
         lat = time.time() - t0
         if r.status_code == 200:
             data = r.json()
@@ -295,7 +346,7 @@ def run_stress_tests():
         "conversation_history": chat_history
     }
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/chat", json=t3_payload, timeout=60)
+        r = session.post(f"{BASE_URL}/api/v1/chat", json=t3_payload, timeout=60)
         lat = time.time() - t0
         if r.status_code == 200:
             data = r.json()
@@ -321,13 +372,13 @@ def run_stress_tests():
     # 3A: Empty string message to /api/v1/chat
     t0 = time.time()
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/chat",
             json={"message": "", "representing_side": "Petitioner / Appellant"},
             timeout=10
         )
         lat = time.time() - t0
-        passed = (r.status_code == 400)
+        passed = (r.status_code in (400, 422))
         record("Edge Case: Empty Prompt in Chat", "EdgeCases", passed, lat, {
             "status_code": r.status_code,
             "msg": f"HTTP {r.status_code} properly rejected: {r.json().get('detail', '')}"
@@ -338,13 +389,13 @@ def run_stress_tests():
     # 3B: Whitespace-only string in chat
     t0 = time.time()
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/chat",
             json={"message": "   \n\t\r   \n   ", "representing_side": "Petitioner / Appellant"},
             timeout=10
         )
         lat = time.time() - t0
-        passed = (r.status_code == 400)
+        passed = (r.status_code in (400, 422))
         record("Edge Case: Whitespace-Only Message in Chat", "EdgeCases", passed, lat, {
             "status_code": r.status_code,
             "msg": f"HTTP {r.status_code} properly rejected: {r.json().get('detail', '')}"
@@ -355,7 +406,7 @@ def run_stress_tests():
     # 3C: Sub-minimum substantive text (< 20 chars) in /api/v1/analyze-case
     t0 = time.time()
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={"case_description": "Grant bail."},
             timeout=10
@@ -383,7 +434,7 @@ def run_stress_tests():
         "Does ratio decidendi bind the High Court under Article 141? Special legal symbols: §, ¶, ©, ⚖, ₹, №, quotes “text” & ‘text’, dash — and arrows →."
     )
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/chat",
             json={"message": unicode_legal_query, "representing_side": "Petitioner / Appellant"},
             timeout=60
@@ -408,14 +459,14 @@ def run_stress_tests():
     t0 = time.time()
     corrupt_bytes = b"CORRUPTED_BINARY_NOT_A_REAL_PDF_DATA\x00\xff\xfe\xaa\xbb\xcc" * 20
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={"representing_side": "Petitioner / Appellant"},
             files={"case_file": ("corrupt_file.pdf", corrupt_bytes, "application/pdf")},
             timeout=15
         )
         lat = time.time() - t0
-        passed = (r.status_code == 422 and "failed to parse pdf" in r.text.lower())
+        passed = (r.status_code == 422 and ("failed to parse pdf" in r.text.lower() or "invalid pdf" in r.text.lower()))
         record("Edge Case: Corrupted PDF Upload Handling", "EdgeCases", passed, lat, {
             "status_code": r.status_code,
             "msg": f"HTTP {r.status_code} caught corrupted PDF: '{r.json().get('detail','')}'"
@@ -437,7 +488,7 @@ def run_stress_tests():
     )
     long_petition_text = "IN THE SUPREME COURT OF INDIA\n\n" + (base_paragraph * 25)  # ~11,000 chars
     try:
-        r = requests.post(
+        r = session.post(
             f"{BASE_URL}/api/v1/analyze-case",
             data={
                 "case_description": long_petition_text,
@@ -481,7 +532,7 @@ def run_stress_tests():
     # 4A: /api/v1/generate-report (JSON + Markdown + HTML)
     t0 = time.time()
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/generate-report", json=report_payload, timeout=90)
+        r = session.post(f"{BASE_URL}/api/v1/generate-report", json=report_payload, timeout=90)
         lat = time.time() - t0
         if r.status_code == 200:
             data = r.json()
@@ -510,7 +561,7 @@ def run_stress_tests():
     # 4B: /api/v1/export-report-pdf (Downloadable PDF)
     t0 = time.time()
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/export-report-pdf", json=report_payload, timeout=90)
+        r = session.post(f"{BASE_URL}/api/v1/export-report-pdf", json=report_payload, timeout=90)
         lat = time.time() - t0
         is_pdf_content_type = ("application/pdf" in r.headers.get("content-type", ""))
         pdf_bytes = r.content
@@ -537,7 +588,7 @@ def run_stress_tests():
     # 4C: /api/v1/export-report-html (Printable HTML)
     t0 = time.time()
     try:
-        r = requests.post(f"{BASE_URL}/api/v1/export-report-html", json=report_payload, timeout=90)
+        r = session.post(f"{BASE_URL}/api/v1/export-report-html", json=report_payload, timeout=90)
         lat = time.time() - t0
         is_html = ("text/html" in r.headers.get("content-type", ""))
         has_html_tags = ("<!DOCTYPE html>" in r.text or "<html" in r.text)

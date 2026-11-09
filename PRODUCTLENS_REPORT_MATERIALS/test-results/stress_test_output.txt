@@ -1,0 +1,51 @@
+﻿
+================================================================================
+ 0. PRE-FLIGHT HEALTH CHECK 
+================================================================================
+[PASS] Health Check & Vector DB Count (0.42s) - Total vectors: 76,802 | Legal-BERT: loaded | Model: openai/gpt-oss-20b
+
+================================================================================
+ 0B. COUNSEL AUTHENTICATION 
+================================================================================
+[AUTH] Successfully logged in as counsel.stress@supreme-court.law
+
+================================================================================
+ 1. COMPLEX CASE PETITION INGESTION 
+================================================================================
+[PASS] Petition Ingestion: IBC S. 14 vs NI Act S. 138 (9.23s) - Generated 1 arguments, retrieved 15 precedents
+[PASS] PDF Ingestion: 3-Page SLP on Art. 21 Surveillance (13.94s) - Parsed 3-page PDF: 2 arguments generated
+[PASS] Hybrid Ingestion: Form Text + PDF File (10.13s) - Combined prompt generated 5 arguments
+
+================================================================================
+ 2. MULTI-TURN CONVERSATIONAL RAG 
+================================================================================
+[PASS] Chat Turn 1: PMLA Bail vs Article 21 Speedy Trial (6.97s) - Reply length: 2904 chars | Citations: 6 | Precedents: 6
+[PASS] Chat Turn 2: Countering ED Objections & Verbatim Quotes (7.0s) - Contextual response length: 2985 chars | Precedents: 6
+[PASS] Chat Turn 3: Stance Inversion to Respondent / Defense (8.18s) - Shifted stance to Respondent / Defense | Length: 5022 chars
+
+================================================================================
+ 3. EXTREME EDGE CASES & BOUNDARIES 
+================================================================================
+[PASS] Edge Case: Empty Prompt in Chat (2.59s) - HTTP 422 properly rejected: [{'type': 'string_too_short', 'loc': ['body', 'message'], 'msg': 'String should have at least 1 character', 'input': '', 'ctx': {'min_length': 1}}]
+[PASS] Edge Case: Whitespace-Only Message in Chat (1.76s) - HTTP 400 properly rejected: Message cannot be empty or whitespace only. Please enter a legal question or instruction.
+[PASS] Edge Case: Sub-minimum Case Text (<20 chars) (2.45s) - HTTP 400 caught sub-minimum text: 'The provided case details are too brief. Please provide sufficient facts for legal analysis.'
+[PASS] Edge Case: Unicode & Legal Symbols (?, ?, ?, ?, ?, ?) (36.57s) - Unicode preserved and answered properly (length 273 chars)
+[PASS] Edge Case: Corrupted PDF Upload Handling (2.56s) - HTTP 422 caught corrupted PDF: 'Invalid PDF file format. The file header does not match authentic PDF specifications.'
+[PASS] Edge Case: Extreme Token Sequence (11,000+ chars) (13.8s) - Processed 16,081 characters, produced 5 arguments
+
+================================================================================
+ 4. REPORT GENERATION & PDF EXPORT 
+================================================================================
+[PASS] Report Generation: JSON / Markdown / HTML (6.5s) - Report ID: SCR-20261109-014ACA | Arguments: 5 | Authorities: 4
+[PASS] Report Export: High-Resolution PDF Generation (6.45s) - PDF generated: 27,078 bytes across 3 pages
+[PASS] Report Export: Printable HTML Endpoint (6.67s) - HTML delivered: 13,163 characters
+
+================================================================================
+ STRESS TEST SUITE FINAL METRICS 
+================================================================================
+Total Tests Run: 16
+Passed:         16
+Failed:         0
+Pass Rate:      100.0%
+
+Detailed test report written to: tests/stress_test_results.json
