@@ -191,6 +191,7 @@ app.add_middleware(
 )
 
 # Route alias middleware: seamlessly rewrite direct requests like /auth/register -> /api/v1/auth/register
+# or /api/auth/google/callback -> /api/v1/auth/google/callback
 # This ensures total compatibility whether the client sends with or without /api/v1 prefix
 @app.middleware("http")
 async def rewrite_api_v1_prefix(request: Request, call_next):
@@ -202,7 +203,10 @@ async def rewrite_api_v1_prefix(request: Request, call_next):
         and not path.startswith("/openapi.json")
         and path not in ("/", "")
     ):
-        request.scope["path"] = f"/api/v1{path}"
+        if path.startswith("/api/"):
+            request.scope["path"] = path.replace("/api/", "/api/v1/", 1)
+        else:
+            request.scope["path"] = f"/api/v1{path}"
     return await call_next(request)
 
 # Include API & Auth Routers

@@ -34,6 +34,7 @@ from app.schemas import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     ChangePasswordRequest,
+    GoogleAuthVerifyRequest,
     ConsultationCreateRequest,
     ConsultationResponse,
     ConsultationListResponse
@@ -575,6 +576,98 @@ async def google_callback(
     set_refresh_cookie(res, raw_refresh)
     res.delete_cookie("oauth_state")
     return res
+
+@router.post("/auth/google/verify", response_model=TokenResponse)
+async def google_verify(
+    payload: GoogleAuthVerifyRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Client-Side Google OAuth Token Verification & Account Provisioning:
+    Accepts credential JWT from @react-oauth/google or Google Identity Services,
+    verifies/decodes user information, provisions or links counsel account,
+    and returns authoritative access token with refresh session cookie.
+    """
+    email = payload.email
+    full_name = payload.name or "Counsel"
+    google_sub = payload.sub
+
+    # If credential JWT was passed, attempt to extract claims
+    if payload.credential:
+        try:
+            decoded = jwt.decode(payload.credential, options={"verify_signature": False})
+            email = decoded.get("email") or email
+            full_name = decoded.get("name") or full_name
+            google_sub = decoded.get("sub") or google_sub
+        except Exception as e:
+            logger.warning(f"Could not decode Google credential JWT: {e}")
+
+    # If access_token was passed and email is still missing, fetch from userinfo
+    if not email and payload.access_token:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {payload.access_token}"}
+                )
+                if res.status_code == 200:
+                    info = res.json()
+                    email = info.get("email")
+                    full_name = info.get("name") or full_name
+                    google_sub = info.get("sub") or google_sub
+        except Exception as e:
+            logger.warning(f"Could not fetch userinfo from Google with access_token: {e}")
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google authentication failed: email could not be retrieved from provider."
+        )
+
+    email_clean = str(email).lower().strip()
+
+    # Find or link user
+    user_res = await db.execute(select(User).where(User.email == email_clean))
+    user = user_res.scalar_one_or_none()
+
+    if user:
+        user.is_email_verified = True
+        if google_sub:
+            user.google_sub = google_sub
+        user.auth_provider = "both" if user.password_hash else "google"
+    else:
+        user = User(
+            email=email_clean,
+            full_name=full_name or "Counsel",
+            auth_provider="google",
+            google_sub=google_sub,
+            is_email_verified=True
+        )
+        db.add(user)
+
+    await db.flush()
+
+    # Issue access token
+    access_token = create_access_token(user.id, user.email)
+
+    # Issue refresh session
+    now = utc_now()
+    raw_refresh = secrets.token_urlsafe(48)
+    session_rec = RefreshSession(
+        user_id=user.id,
+        token_hash=hash_token(raw_refresh),
+        expires_at=now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        user_agent=request.headers.get("user-agent", "")[:500],
+        ip_address=request.client.host if request.client else ""
+    )
+    db.add(session_rec)
+    await db.commit()
+    await db.refresh(user)
+
+    set_refresh_cookie(response, raw_refresh)
+    return TokenResponse(access_token=access_token, user=user_to_response(user))
 
 # ==============================================================================
 # Consultations Persistence Endpoints

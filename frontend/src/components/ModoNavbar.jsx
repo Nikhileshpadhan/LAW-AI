@@ -1,15 +1,41 @@
 import React from "react";
+import { LogOut, User as UserIcon } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import CounselAvatar from "./CounselAvatar";
 
 export default function ModoNavbar({
   activeView,
   setActiveView,
+  currentUser: propUser,
+  onOpenAuthModal: propOpenAuth,
+  onLogout: propLogout,
 }) {
+  const auth = useAuth();
+  const user = propUser !== undefined ? propUser : auth.user;
+  const isAuthenticated = Boolean(user);
+  const handleOpenAuth = propOpenAuth || auth.openAuthModal;
+  const handleLogout = propLogout || auth.logout;
+
   const isLanding = activeView === "landing";
+
+  const renderProfilePill = () => {
+    const rawName = user?.name || user?.full_name || user?.email?.split("@")[0] || "Counsel";
+    const displayName = rawName.replace(/^Counsel\s*:\s*/i, "").replace(/^Counsel\s+/i, "").trim();
+
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-200">
+        <CounselAvatar user={user} size="sm" />
+        <span className="font-medium text-white truncate max-w-[140px] sm:max-w-[180px]">
+          Counsel: {displayName}
+        </span>
+      </div>
+    );
+  };
 
   if (isLanding) {
     return (
       <header className="absolute top-0 left-0 right-0 z-50 h-24 w-full px-6 sm:px-10 md:px-16 lg:px-20 flex items-center justify-between bg-transparent text-white select-none">
-        {/* Left: Logo in clean Serif font - completely plain, floating text, zero borders/outlines/boxes */}
+        {/* Left: Logo in clean Serif font - completely plain, floating text */}
         <div className="flex items-center">
           <button
             type="button"
@@ -46,22 +72,67 @@ export default function ModoNavbar({
 
           <button
             type="button"
-            onClick={() => setActiveView("chamber")}
+            onClick={() => {
+              if (!isAuthenticated) {
+                handleOpenAuth?.("login");
+              } else {
+                setActiveView("chamber");
+              }
+            }}
             className="hover:text-white transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
           >
             Workbench
           </button>
         </nav>
 
-        {/* Right: Highly contrasting solid white button with dark text */}
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => setActiveView("chamber")}
-            className="bg-white hover:bg-neutral-200 text-black font-semibold text-xs sm:text-sm px-5 py-2.5 rounded transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none shadow-sm"
-          >
-            Enter Chamber
-          </button>
+        {/* Right: Dynamic Header Navigation (Logged In vs Logged Out) */}
+        <div className="flex items-center gap-3">
+          {isAuthenticated ? (
+            <>
+              {/* Sequence 1: "Enter Chamber" button (direct navigation without modal) */}
+              <button
+                type="button"
+                onClick={() => setActiveView("chamber")}
+                className="bg-white hover:bg-neutral-200 text-black font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none shadow-sm"
+              >
+                Enter Chamber
+              </button>
+
+              {/* Sequence 2: The logged-in user's name badge */}
+              {renderProfilePill()}
+
+              {/* Sequence 3: "Logout" button */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign out of chamber"
+                className="text-xs sm:text-sm font-medium text-zinc-400 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20 transition-all duration-150 cursor-pointer flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Unauthenticated State: Displays both "Sign In / Register" and "Enter Chamber" */}
+              <button
+                type="button"
+                onClick={() => handleOpenAuth?.("login")}
+                className="text-xs sm:text-sm font-medium text-white/90 hover:text-white px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg hover:bg-white/10 border border-white/15 hover:border-white/30 transition-all duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              >
+                Sign In / Register
+              </button>
+
+              {/* Clicking "Enter Chamber" while unauthenticated intercepts and prompts authentication modal */}
+              <button
+                type="button"
+                onClick={() => handleOpenAuth?.("login")}
+                className="bg-white hover:bg-neutral-200 text-black font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none shadow-sm"
+              >
+                Enter Chamber
+              </button>
+            </>
+          )}
         </div>
       </header>
     );
@@ -119,8 +190,10 @@ export default function ModoNavbar({
         </button>
       </nav>
 
-      {/* Mode Exit */}
-      <div>
+      {/* Mode Exit & Auth Action */}
+      <div className="flex items-center gap-3">
+        {isAuthenticated && renderProfilePill()}
+
         <button
           type="button"
           onClick={() => setActiveView("landing")}

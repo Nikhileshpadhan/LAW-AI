@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # Environment & CORS
-    ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://law-rag-ai.vercel.app"
     FRONTEND_URL: str = "http://localhost:5173"
 
     @property
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # Google OAuth 2.0
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/auth/google/callback"
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

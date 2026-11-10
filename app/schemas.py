@@ -172,6 +172,14 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8, max_length=128)
 
+class GoogleAuthVerifyRequest(BaseModel):
+    credential: Optional[str] = None
+    access_token: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    sub: Optional[str] = None
+
 class UserResponse(BaseModel):
     id: str
     email: str

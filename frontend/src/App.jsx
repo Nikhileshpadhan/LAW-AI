@@ -14,8 +14,18 @@ import AuthModal from "./components/AuthModal";
 import Skiper10 from "./components/ui/skiper-ui/skiper10";
 import ScrollRevealWrapper from "./components/ui/ScrollRevealWrapper";
 import { LegalApiService } from "./services/api";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
+  const {
+    user: currentUser,
+    openAuthModal,
+    closeAuthModal,
+    isAuthModalOpen,
+    authModalMode,
+    logout: contextLogout,
+  } = useAuth();
+
   const [showPreloader, setShowPreloader] = useState(false);
   const [activeView, setActiveView] = useState("landing"); // 'landing' | 'chamber'
   const [isChamberSidebarOpen, setIsChamberSidebarOpen] = useState(() => {
@@ -28,9 +38,7 @@ export default function App() {
   const [statutes, setStatutes] = useState([]);
   const [lastAnalysisResult, setLastAnalysisResult] = useState(null);
 
-  // User Authentication & Consultations
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  // Consultations & Messages State
   const [consultations, setConsultations] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState("current");
 
@@ -55,25 +63,6 @@ export default function App() {
   // 1. Non-blocking wake-up ping to backend health check on mount
   useEffect(() => {
     LegalApiService.checkHealth().catch(() => {});
-
-    // Restore cached user
-    const savedUser = localStorage.getItem("law_ai_user");
-    if (savedUser) {
-      try {
-        setCurrentUser(JSON.parse(savedUser));
-      } catch {}
-    }
-
-    // Check for Google OAuth success redirect query param (?auth_success=true)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("auth_success") === "true") {
-      LegalApiService.getMe()
-        .then((user) => {
-          setCurrentUser(user);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        })
-        .catch(() => {});
-    }
   }, []);
 
   // 2. Fetch saved consultations when user is authenticated
@@ -87,10 +76,19 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Navigate to chamber with authentication check
+  const handleEnterChamber = () => {
+    if (!currentUser) {
+      openAuthModal("login");
+    } else {
+      setActiveView("chamber");
+    }
+  };
+
   // Send Chat Message
   const handleSendMessage = async (text) => {
     if (!currentUser) {
-      setIsAuthModalOpen(true);
+      openAuthModal("login");
       return;
     }
     const userMessage = { role: "user", content: text };
@@ -157,7 +155,7 @@ export default function App() {
   // Upload Case File (PDF / TXT)
   const handleUploadFile = async (file) => {
     if (!currentUser) {
-      setIsAuthModalOpen(true);
+      openAuthModal("login");
       return;
     }
     setActiveFile(file);
@@ -266,10 +264,24 @@ export default function App() {
     }
   };
 
-  // Generate Formal Strategy Report (shows loading spinner while generating)
+  // Define a valid chat as having at least one completed exchange
+  // (a user legal proposition/query and an AI advocate response, or uploaded analyzed case document)
+  const hasUserMessage = messages.some((m) => m.role === "user");
+  const hasCompletedAssistantReply = messages.some(
+    (m, idx) => idx > 0 && m.role === "assistant" && !m.isError
+  );
+  const canGenerateReport = Boolean(
+    (hasUserMessage && hasCompletedAssistantReply) || lastAnalysisResult
+  );
+
+  // Generate Formal Strategy Report (conditionally enabled only when valid legal discussion exists)
   const handleOpenReportModal = async () => {
     if (!currentUser) {
-      setIsAuthModalOpen(true);
+      openAuthModal("login");
+      return;
+    }
+    if (!canGenerateReport) {
+      alert("Consult precedents or submit case facts first to generate a strategy report.");
       return;
     }
     setIsReportModalOpen(true);
@@ -301,7 +313,11 @@ export default function App() {
   // Quick PDF Export (passes pre-calculated brief & arguments if available)
   const handleQuickExportPdf = async () => {
     if (!currentUser) {
-      setIsAuthModalOpen(true);
+      openAuthModal("login");
+      return;
+    }
+    if (!canGenerateReport) {
+      alert("Consult precedents or submit case facts first to generate a strategy report.");
       return;
     }
     setIsExportingPdf(true);
@@ -355,15 +371,15 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await LegalApiService.logout();
-    setCurrentUser(null);
+    await contextLogout();
+    setActiveView("landing");
     setConsultations([]);
   };
 
   return (
     <div
       className={`w-screen bg-black text-white selection:bg-white selection:text-black ${
-        activeView === "chamber"
+        activeView === "chamber" && currentUser
           ? "h-screen overflow-hidden flex flex-col"
           : "min-h-screen flex flex-col"
       }`}
@@ -376,45 +392,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content: Landing Mode OR Chamber Mode */}
-      {activeView === "landing" ? (
-        <>
-          <ModoNavbar
-            activeView={activeView}
-            setActiveView={setActiveView}
-          />
-          <main className="flex-1 flex flex-col bg-black">
-            {/* Gallery Hero */}
-            <LandingHero
-              onEnterChamber={() => setActiveView("chamber")}
-              onExploreCorpus={() => {
-                const el = document.getElementById("features") || document.getElementById("architecture");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-            />
-
-            {/* Features: Building Technology */}
-            <ScrollRevealWrapper variant="cinematic" threshold={0.05}>
-              <LandingExhibition
-                onOpenChamber={() => setActiveView("chamber")}
-              />
-            </ScrollRevealWrapper>
-
-            {/* Precedent Exhibits Showcase / Tech Stack */}
-            <ScrollRevealWrapper variant="card-depth" threshold={0.05}>
-              <LandingPrecedentsShowcase
-                onSelectScenario={handleSelectScenario}
-              />
-            </ScrollRevealWrapper>
-
-            {/* Monolithic Colophon Footer */}
-            <ScrollRevealWrapper variant="fade-up" threshold={0.05}>
-              <LandingFooter
-                onEnterChamber={() => setActiveView("chamber")}
-              />
-            </ScrollRevealWrapper>
-          </main>
-        </>
-      ) : (
+      {activeView === "chamber" && currentUser ? (
         /* Streamlined Minimalist AI Chamber (Center-Focused App Shell) */
         <div className="h-screen w-screen overflow-hidden flex flex-col bg-black text-white">
           <ChamberHeader
@@ -428,8 +406,9 @@ export default function App() {
               setActiveReport(null);
             }}
             currentUser={currentUser}
-            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onOpenAuthModal={() => openAuthModal("login")}
             onLogout={handleLogout}
+            canGenerateReport={canGenerateReport}
           />
           <div className="flex-1 flex overflow-hidden min-h-0 w-full h-full relative">
             <ChamberSidebar
@@ -461,10 +440,52 @@ export default function App() {
               onInspectPrecedent={(p) => setInspectPrecedent(p)}
               onRetry={(prompt) => handleSendMessage(prompt)}
               currentUser={currentUser}
-              onRequireAuth={() => setIsAuthModalOpen(true)}
+              onRequireAuth={() => openAuthModal("login")}
             />
           </div>
         </div>
+      ) : (
+        /* Landing Page Mode */
+        <>
+          <ModoNavbar
+            activeView={activeView}
+            setActiveView={setActiveView}
+            currentUser={currentUser}
+            onOpenAuthModal={openAuthModal}
+            onLogout={handleLogout}
+          />
+          <main className="flex-1 flex flex-col bg-black">
+            {/* Gallery Hero */}
+            <LandingHero
+              onEnterChamber={handleEnterChamber}
+              onExploreCorpus={() => {
+                const el = document.getElementById("features") || document.getElementById("architecture");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            />
+
+            {/* Features: Building Technology */}
+            <ScrollRevealWrapper variant="cinematic" threshold={0.05}>
+              <LandingExhibition
+                onOpenChamber={handleEnterChamber}
+              />
+            </ScrollRevealWrapper>
+
+            {/* Precedent Exhibits Showcase / Tech Stack */}
+            <ScrollRevealWrapper variant="card-depth" threshold={0.05}>
+              <LandingPrecedentsShowcase
+                onSelectScenario={handleSelectScenario}
+              />
+            </ScrollRevealWrapper>
+
+            {/* Monolithic Colophon Footer */}
+            <ScrollRevealWrapper variant="fade-up" threshold={0.05}>
+              <LandingFooter
+                onEnterChamber={handleEnterChamber}
+              />
+            </ScrollRevealWrapper>
+          </main>
+        </>
       )}
 
       {/* Full Report Modal */}
@@ -486,10 +507,12 @@ export default function App() {
       {/* Authentication Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthModalOpen(false);
+        onClose={closeAuthModal}
+        initialMode={authModalMode}
+        onAuthSuccess={() => {
+          // Strict Requirement: Immediately return or stay on the Landing Page (/), NOT directly into /chat
+          setActiveView("landing");
+          closeAuthModal();
         }}
       />
     </div>

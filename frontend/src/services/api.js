@@ -184,6 +184,15 @@ export const LegalApiService = {
     return response.data;
   },
 
+  async googleVerify(payload) {
+    const response = await apiClient.post("/auth/google/verify", payload);
+    if (response.data?.access_token) {
+      localStorage.setItem("law_ai_token", response.data.access_token);
+      localStorage.setItem("law_ai_user", JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
+
   async logout() {
     try {
       await apiClient.post("/auth/logout");

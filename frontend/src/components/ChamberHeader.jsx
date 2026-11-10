@@ -1,5 +1,6 @@
 import React from "react";
 import { PanelLeft, FileText, ChevronDown, User, LogOut } from "lucide-react";
+import CounselAvatar from "./CounselAvatar";
 
 export default function ChamberHeader({
   onToggleSidebar,
@@ -11,12 +12,16 @@ export default function ChamberHeader({
   currentUser,
   onOpenAuthModal,
   onLogout,
+  canGenerateReport = false,
 }) {
   const stances = [
     "Petitioner / Appellant",
     "Respondent / Defense",
     "Neutral Evaluation",
   ];
+
+  const rawName = currentUser?.name || currentUser?.full_name || currentUser?.email?.split("@")[0] || "Counsel";
+  const displayName = rawName.replace(/^Counsel\s*:\s*/i, "").replace(/^Counsel\s+/i, "").trim();
 
   return (
     <header className="h-16 w-full border-b border-white/5 bg-black px-4 sm:px-6 md:px-8 flex items-center justify-between flex-shrink-0 z-40 select-none">
@@ -41,6 +46,14 @@ export default function ChamberHeader({
             LAW AI
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={onReturnToLanding}
+          className="hidden sm:inline-flex items-center text-xs text-zinc-400 hover:text-white transition-colors border-l border-white/10 pl-3 cursor-pointer"
+        >
+          Overview
+        </button>
       </div>
 
       {/* Center: Stance Selector Dropdown */}
@@ -64,41 +77,46 @@ export default function ChamberHeader({
 
       {/* Right: Auth Profile & 'Generate Report' CTA */}
       <div className="flex items-center gap-3">
-        {currentUser ? (
-          <div className="flex items-center gap-2">
-            <div className="hidden md:flex flex-col text-right">
-              <span className="text-xs text-white font-medium truncate max-w-[120px]">
-                {currentUser.full_name || currentUser.email}
+        {currentUser && (
+          <div className="flex items-center gap-2.5">
+            {/* Counsel Profile Pill: Clean avatar with fallback & no literal brackets */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-200">
+              <CounselAvatar user={currentUser} size="sm" />
+              <span className="font-medium text-white truncate max-w-[120px] sm:max-w-[160px]">
+                Counsel: {displayName}
               </span>
-              <span className="text-[10px] text-zinc-500 font-mono">Counsel</span>
             </div>
+
+            {/* Logout CTA */}
             <button
               type="button"
               onClick={onLogout}
               title="Sign out of chamber"
-              className="h-9 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer text-xs flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              className="h-8 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer text-xs flex items-center gap-1.5 border border-white/10 hover:border-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign out</span>
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onOpenAuthModal}
-            className="h-9 px-3 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-xs text-white font-medium transition-colors cursor-pointer flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-          >
-            <User className="w-3.5 h-3.5 text-zinc-300" />
-            <span>Sign In</span>
-          </button>
         )}
 
+        {/* Generate Report Button - Conditionally disabled when no active legal discussion */}
         <button
           type="button"
-          onClick={onOpenReportModal}
-          className="h-9 sm:h-10 px-3.5 sm:px-5 bg-white hover:bg-neutral-200 text-black font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-2 transition-colors duration-150 cursor-pointer shadow-md focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+          onClick={canGenerateReport ? onOpenReportModal : undefined}
+          disabled={!canGenerateReport}
+          title={
+            canGenerateReport
+              ? "Generate Formal Strategy Report"
+              : "Consult precedents or submit case facts first to generate a strategy report."
+          }
+          className={`h-9 sm:h-10 px-3.5 sm:px-5 font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-2 transition-all duration-150 shadow-md ${
+            canGenerateReport
+              ? "bg-white hover:bg-neutral-200 text-black cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              : "bg-white/5 text-zinc-500 border border-white/5 opacity-40 cursor-not-allowed select-none"
+          }`}
         >
-          <FileText className="w-4 h-4 text-black" />
+          <FileText className={`w-4 h-4 ${canGenerateReport ? "text-black" : "text-zinc-500"}`} />
           <span>Generate Report</span>
         </button>
       </div>
