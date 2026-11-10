@@ -108,7 +108,7 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
           variants={itemFadeUp}
           className="lg:col-span-5 xl:col-span-4 flex flex-col justify-end text-left lg:text-left pb-1"
         >
-          <p className="font-sans text-xs sm:text-sm md:text-base lg:text-lg text-white/85 font-light leading-relaxed max-w-md">
+          <p className="font-serif text-sm sm:text-base md:text-lg lg:text-xl text-[#f3efe6]/90 font-normal tracking-normal sm:tracking-wide leading-relaxed max-w-md antialiased selection:bg-white selection:text-black">
             Analyze legal cases, discover precedents, and gain actionable insights
             through advanced AI-driven legal research.
           </p>
