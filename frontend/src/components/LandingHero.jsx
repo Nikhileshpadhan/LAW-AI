@@ -32,7 +32,7 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
     <section
       id="hero"
       aria-label="Supreme Court Legal Intelligence Chamber"
-      className="relative min-h-dvh h-dvh w-full bg-black flex flex-col justify-end pb-12 sm:pb-16 md:pb-20 px-6 sm:px-10 md:px-16 lg:px-20 overflow-hidden select-none"
+      className="relative min-h-dvh h-dvh w-full bg-black flex flex-col justify-end pb-8 sm:pb-16 md:pb-20 px-4 sm:px-10 md:px-16 lg:px-20 overflow-hidden select-none"
     >
       {/* 1. Full-Screen Sunlit Courtroom Scene: God Rays, Central Desk Caustics & Dust Particles */}
       <SunlitCourtroomScene />
@@ -42,13 +42,13 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-30 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end"
+        className="relative z-30 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-end"
       >
         {/* ================= LOWER-LEFT QUADRANT: KICKER, SERIF HEADLINE & GHOST CTAS ================= */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-6 text-left">
+        <div className="lg:col-span-7 xl:col-span-8 space-y-4 sm:space-y-6 text-left">
           {/* Kicker Text: Small, all-caps, widely spaced sans-serif in pure white */}
           <motion.div variants={itemFadeUp}>
-            <p className="brand-mark font-sans text-xs tracking-[0.25em] uppercase font-medium text-white">
+            <p className="brand-mark font-sans text-[11px] sm:text-xs tracking-[0.25em] uppercase font-medium text-white">
               Supreme Court Intelligence
             </p>
           </motion.div>
@@ -73,20 +73,20 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
               cursorColor="#ffffff"
               cursorGlide
               showCursor
-              className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08] select-none"
+              className="font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08] select-none"
             />
           </motion.div>
 
           {/* Ghost Buttons: Strictly transparent background, thin crisp white border, white text, minimalist right-arrow icon */}
           <motion.div
             variants={itemFadeUp}
-            className="flex flex-wrap items-center gap-4 pt-2"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-1 sm:pt-2"
           >
             {/* Primary Ghost CTA */}
             <button
               type="button"
               onClick={onEnterChamber}
-              className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-transparent border border-white text-white hover:bg-white hover:text-black font-medium text-sm rounded transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              className="inline-flex items-center justify-center gap-2.5 px-5 sm:px-6 py-3 sm:py-3.5 bg-transparent border border-white text-white hover:bg-white hover:text-black font-medium text-xs sm:text-sm rounded transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none w-full sm:w-auto"
             >
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
@@ -96,7 +96,7 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
             <button
               type="button"
               onClick={onExploreCorpus}
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-transparent border border-white/60 text-white/90 hover:border-white hover:text-white hover:bg-white/10 font-medium text-sm rounded transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3.5 bg-transparent border border-white/60 text-white/90 hover:border-white hover:text-white hover:bg-white/10 font-medium text-xs sm:text-sm rounded transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none w-full sm:w-auto"
             >
               <span>Explore Corpus</span>
             </button>
@@ -108,7 +108,7 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
           variants={itemFadeUp}
           className="lg:col-span-5 xl:col-span-4 flex flex-col justify-end text-left lg:text-left pb-1"
         >
-          <p className="font-sans text-sm sm:text-base md:text-lg text-white/85 font-light leading-relaxed max-w-md">
+          <p className="font-sans text-xs sm:text-sm md:text-base lg:text-lg text-white/85 font-light leading-relaxed max-w-md">
             Analyze legal cases, discover precedents, and gain actionable insights
             through advanced AI-driven legal research.
           </p>
