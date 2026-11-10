@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import SunlitCourtroomScene from "./SunlitCourtroomScene";
+import TextType from "./TextType";
 
 export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
   const containerVariants = {
@@ -52,15 +53,29 @@ export default function LandingHero({ onEnterChamber, onExploreCorpus }) {
             </p>
           </motion.div>
 
-          {/* Main Headline: Large, high-contrast classic Serif font in pure white */}
-          <motion.h1
-            variants={itemFadeUp}
-            className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08]"
-          >
-            RAG-Based
-            <br />
-            Law Intelligence
-          </motion.h1>
+          {/* Main Headline with React Bits TextType Typing Effect */}
+          <motion.div variants={itemFadeUp} className="min-h-[2.3em]">
+            <TextType
+              as="h1"
+              text={[
+                "RAG-Based\nLaw Intelligence",
+                "Supreme Court\nPrecedent Analysis",
+                "Precision Case\nStrategy Briefs",
+                "AI Judicial\nResearch Engine",
+              ]}
+              typingSpeed={65}
+              pauseDuration={2200}
+              deletingSpeed={35}
+              deleteMode="backspace"
+              typeEffect="fade"
+              mistakes={0.08}
+              cursorStyle="bar"
+              cursorColor="#ffffff"
+              cursorGlide
+              showCursor
+              className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08] select-none"
+            />
+          </motion.div>
 
           {/* Ghost Buttons: Strictly transparent background, thin crisp white border, white text, minimalist right-arrow icon */}
           <motion.div
