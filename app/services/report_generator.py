@@ -82,7 +82,7 @@ class ReportGeneratorService:
                 if case_key not in seen_cases:
                     seen_cases.add(case_key)
                     bench_str = prec.bench or "Supreme Court of India"
-                    tag = f"[Citation: {prec.case_name} ({prec.year}) | Bench: {bench_str} | Match: {prec.similarity_score * 100:.1f}%]"
+                    tag = f"[Citation: {prec.case_name} ({prec.year}) | Bench: {bench_str}]"
                     table_of_authorities.append(
                         PrecedentCitation(
                             case_name=prec.case_name,
@@ -249,7 +249,7 @@ class ReportGeneratorService:
             # Precedents
             if arg.supporting_precedents:
                 for prec in arg.supporting_precedents:
-                    prec_header = f"[*] {prec.case_name} ({prec.year}) | Bench: {prec.bench or 'Supreme Court of India'} [Match: {prec.similarity_score * 100:.1f}%]"
+                    prec_header = f"[*] {prec.case_name} ({prec.year}) | Bench: {prec.bench or 'Supreme Court of India'}"
                     write_paragraph(prec_header, fontsize=8.5, fontname="helv", color=(0.08, 0.25, 0.15), indent=10)
                     quote_text = f"\"{prec.verbatim_quote.strip()}\""
                     write_paragraph(quote_text, fontsize=8.5, color=(0.25, 0.25, 0.25), indent=18)
@@ -262,7 +262,7 @@ class ReportGeneratorService:
         # Part III: Table of Authorities
         write_heading("III. Table of Authorities (Supreme Court of India)", 1)
         for idx, auth in enumerate(report.table_of_authorities, 1):
-            line = f"{idx}. {auth.case_name} ({auth.year}) - Bench: {auth.bench} (Similarity: {auth.similarity_score * 100:.1f}%)"
+            line = f"{idx}. {auth.case_name} ({auth.year}) - Bench: {auth.bench}"
             write_paragraph(line, fontsize=8.5, indent=8)
 
         pdf_bytes = doc.tobytes()
@@ -311,7 +311,7 @@ class ReportGeneratorService:
                 for prec in arg.supporting_precedents:
                     bench_str = prec.bench or "Supreme Court of India"
                     md.append(f"- **{prec.case_name} ({prec.year})**  ")
-                    md.append(f"  *Bench:* {bench_str}  |  *Relevance Match:* {prec.similarity_score * 100:.1f}%")
+                    md.append(f"  *Bench:* {bench_str}")
                     md.append(f"  > \"{prec.verbatim_quote.strip()}\"\n")
 
             md.append(f"**Anticipated Opposing Objection:**  \n{arg.anticipated_counter_argument}\n")
@@ -319,10 +319,10 @@ class ReportGeneratorService:
             md.append("`" + "="*70 + "`\n")
 
         md.append("## Part III: Table of Authorities (Supreme Court of India - 5 Year Bundle)\n")
-        md.append("| # | Case Name | Year | Bench | Match Score | Citation Tag |")
-        md.append("|---|---|---|---|---|---|")
+        md.append("| # | Case Name | Year | Bench | Citation Tag |")
+        md.append("|---|---|---|---|---|")
         for idx, auth in enumerate(table_of_authorities, 1):
-            md.append(f"| {idx} | **{auth.case_name}** | {auth.year} | {auth.bench} | {auth.similarity_score*100:.1f}% | `{auth.citation_tag}` |")
+            md.append(f"| {idx} | **{auth.case_name}** | {auth.year} | {auth.bench} | `{auth.citation_tag}` |")
         md.append("")
 
         md.append("---\n*End of Supreme Court Precedent Strategy Report. Prepared for Court Submissions.*")
@@ -507,10 +507,9 @@ class ReportGeneratorService:
 """
             for prec in arg.supporting_precedents:
                 bench = prec.bench or "Supreme Court of India"
-                score = round(prec.similarity_score * 100, 1)
                 html_out += f"""
     <div class="citation-card">
-      <strong>{esc(prec.case_name)} ({esc(prec.year)})</strong> &mdash; <em>Bench: {esc(bench)}</em> [Relevance Match: {score}%]
+      <strong>{esc(prec.case_name)} ({esc(prec.year)})</strong> &mdash; <em>Bench: {esc(bench)}</em>
       <div class="quote-box">"{esc(prec.verbatim_quote.strip())}"</div>
     </div>
 """
@@ -530,7 +529,6 @@ class ReportGeneratorService:
         <th>Case Title</th>
         <th>Year</th>
         <th>Bench</th>
-        <th>Score</th>
       </tr>
     </thead>
     <tbody>
@@ -542,7 +540,6 @@ class ReportGeneratorService:
         <td><strong>{esc(auth.case_name)}</strong></td>
         <td>{esc(auth.year)}</td>
         <td>{esc(auth.bench)}</td>
-        <td>{auth.similarity_score * 100:.1f}%</td>
       </tr>
 """
         html_out += f"""

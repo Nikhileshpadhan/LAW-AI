@@ -240,6 +240,19 @@ class VectorEngine:
                 return bench_str
         return "Supreme Court of India"
 
+    @staticmethod
+    def _is_substantive_chunk(document_text: str) -> bool:
+        if not document_text or len(document_text.strip()) < 60:
+            return False
+        # Filter out chunks that are purely lists of subclause identifiers e.g. (zo), (zq), (zr)...
+        words = re.findall(r'[a-zA-Z]+', document_text)
+        if not words or len(words) < 12:
+            return False
+        short_words = [w for w in words if len(w) <= 2]
+        if len(short_words) / len(words) > 0.60:
+            return False
+        return True
+
     def retrieve_top_precedents(
         self,
         queries: List[str],
@@ -274,6 +287,9 @@ class VectorEngine:
             dists = results["distances"][q_idx]
 
             for chunk_id, doc_text, meta, dist in zip(query_ids, docs, metas, dists):
+                if not self._is_substantive_chunk(doc_text):
+                    continue
+
                 similarity = round(max(0.0, 1.0 - float(dist)), 4)
                 raw_title = meta.get("case_title", "")
                 case_title = self._clean_case_title(raw_title)
@@ -303,11 +319,12 @@ class VectorEngine:
             reverse=True
         )
 
-        # Apply MIN_SIMILARITY_THRESHOLD with fallback to top 3
+        # Apply MIN_SIMILARITY_THRESHOLD with floor fallback
         threshold = settings.MIN_SIMILARITY_THRESHOLD
         filtered = [c for c in sorted_chunks if c["similarity_score"] >= threshold]
         if not filtered and sorted_chunks:
-            filtered = sorted_chunks[:3]
+            # Fallback only to chunks that meet a baseline relevance floor (>= 0.35)
+            filtered = [c for c in sorted_chunks[:3] if c["similarity_score"] >= 0.35]
 
         return filtered[:max_total]
 
@@ -328,13 +345,16 @@ class VectorEngine:
 
             for hit in search_results:
                 payload = hit.payload or {}
+                doc_text = payload.get("document_text", "")
+                if not self._is_substantive_chunk(doc_text):
+                    continue
+
                 chunk_id = str(payload.get("chunk_id") or hit.id)
                 similarity = round(float(hit.score), 4)
                 raw_title = payload.get("case_title", "")
                 case_title = self._clean_case_title(raw_title)
                 year = str(payload.get("year", ""))
                 file_name = payload.get("file_name", "")
-                doc_text = payload.get("document_text", "")
                 bench = self._extract_bench(doc_text)
 
                 if chunk_id in seen_chunks:
@@ -359,10 +379,11 @@ class VectorEngine:
             reverse=True
         )
 
-        # Apply MIN_SIMILARITY_THRESHOLD with fallback to top 3
+        # Apply MIN_SIMILARITY_THRESHOLD with floor fallback
         threshold = settings.MIN_SIMILARITY_THRESHOLD
         filtered = [c for c in sorted_chunks if c["similarity_score"] >= threshold]
         if not filtered and sorted_chunks:
-            filtered = sorted_chunks[:3]
+            # Fallback only to chunks that meet a baseline relevance floor (>= 0.35)
+            filtered = [c for c in sorted_chunks[:3] if c["similarity_score"] >= 0.35]
 
         return filtered[:max_total]

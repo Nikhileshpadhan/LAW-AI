@@ -206,11 +206,7 @@ export default function ChamberSidebar({
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                          <span className="font-mono">
-                            {p.similarity_score
-                              ? `${(p.similarity_score * 100).toFixed(0)}% match`
-                              : "Cited"}
-                          </span>
+                          <span className="text-zinc-400">Precedent</span>
                           <span className="text-zinc-400 group-hover:text-white flex items-center gap-1">
                             <BookOpen className="w-3 h-3" />
                             <span>Inspect</span>

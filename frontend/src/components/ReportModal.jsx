@@ -190,9 +190,6 @@ export default function ReportModal({
                         <span className="font-serif font-normal text-white text-sm">
                           {auth.case_name} ({auth.year})
                         </span>
-                        <span className="text-[11px] bg-white/10 text-white px-2.5 py-0.5 rounded-full font-mono font-medium">
-                          {(auth.similarity_score * 100).toFixed(1)}% match
-                        </span>
                       </div>
                       <div className="text-xs text-zinc-400">
                         Bench: {auth.bench}

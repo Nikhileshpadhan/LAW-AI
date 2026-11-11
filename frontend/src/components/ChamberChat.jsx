@@ -174,9 +174,6 @@ export default function ChamberChat({
                               <span className="font-serif font-normal text-white text-sm">
                                 {c.case_name} ({c.year})
                               </span>
-                              <span className="text-[11px] bg-white/10 text-white px-2.5 py-0.5 rounded-full font-mono font-medium">
-                                {(c.similarity_score * 100).toFixed(1)}% match
-                              </span>
                             </div>
 
                             <div className="text-[11px] text-zinc-400">

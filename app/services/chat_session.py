@@ -312,9 +312,12 @@ class LegalChatSession:
         # Structured citation list
         citations = []
         for prec in retrieved:
+            # Do not cite chunks that do not meet baseline relevance
+            if prec.get("similarity_score", 0.0) < 0.35:
+                continue
             quote = prec["document_text"][:300].replace("\n", " ").strip()
             bench_str = prec.get("bench") or "Supreme Court of India"
-            tag = f"[Citation: {prec['case_name']} ({prec['year']}) | Bench: {bench_str} | Match: {prec['similarity_score']*100:.1f}%]"
+            tag = f"[Citation: {prec['case_name']} ({prec['year']}) | Bench: {bench_str}]"
             citations.append({
                 "case_name": prec["case_name"],
                 "year": prec["year"],

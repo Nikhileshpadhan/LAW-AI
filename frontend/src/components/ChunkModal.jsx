@@ -36,8 +36,8 @@ export default function ChunkModal({ isOpen, onClose, precedent }) {
                 {precedent.bench || "Supreme Court of India"}
               </span>
             </div>
-            <span className="bg-white/10 text-white px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium">
-              {(precedent.similarity_score * 100).toFixed(1)}% match
+            <span className="text-zinc-400 text-[11px] font-medium">
+              {precedent.year || "Supreme Court"}
             </span>
           </div>
 
